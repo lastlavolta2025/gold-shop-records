@@ -3,29 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>景輝金鋪數據上傳</title>
+  <title>景輝金鋪數據登記</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: "Segoe UI", "Microsoft JhengHei", sans-serif; background: #f9fafb; padding: 15px; }
-    .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 450px; margin: auto; border-top: 8px solid #92400e; }
-    label { display: block; margin: 18px 0 6px; font-weight: 800; color: #374151; }
-    input, select { width: 100%; padding: 14px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1.1rem; font-weight: bold; }
+    body { font-family: "Segoe UI", "Microsoft JhengHei", sans-serif; background: #f3f4f6; padding: 15px; }
+    .card { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; margin: auto; border-top: 10px solid #92400e; }
+    label { display: block; margin: 20px 0 8px; font-weight: 800; color: #1f2937; }
+    input, select { width: 100%; padding: 16px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1.2rem; font-weight: bold; background: #fff; }
     input:focus { border-color: #92400e; outline: none; background: #fffbeb; }
-    .btn-submit { background: #b45309; color: white; width: 100%; padding: 18px; border-radius: 12px; font-size: 1.3rem; font-weight: 900; margin-top: 30px; box-shadow: 0 4px 12px rgba(180, 83, 9, 0.2); }
-    .btn-submit:active { transform: scale(0.97); }
+    .btn-submit { background: #b45309; color: white; width: 100%; padding: 20px; border-radius: 16px; font-size: 1.4rem; font-weight: 900; margin-top: 30px; box-shadow: 0 4px 15px rgba(180, 83, 9, 0.3); transition: 0.2s; }
+    .btn-submit:active { transform: scale(0.96); }
     .admin-only { display: none; }
-    .history-card { background: #f3f4f6; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid #b45309; }
+    .record-box { background: #f9fafb; padding: 15px; border-radius: 12px; border-left: 5px solid #d97706; margin-bottom: 12px; }
   </style>
 </head>
 <body>
 
   <div class="card">
     <div class="flex justify-between items-center mb-8">
-      <h1 class="text-2xl font-black text-amber-900 text-center flex-1">💰 每日收金登記</h1>
-      <input type="password" id="bossPass" placeholder="管理" class="w-12 text-[10px] p-1 border rounded opacity-30" oninput="toggleAdminView()">
+      <h1 class="text-2xl font-black text-amber-900">景輝收金登記表</h1>
+      <input type="password" id="bossPass" placeholder="管理" class="w-10 text-[8px] p-1 border rounded opacity-20" oninput="toggleAdminView()">
     </div>
 
-    <div class="grid grid-cols-2 gap-3">
+    <div class="grid grid-cols-2 gap-4">
       <div>
         <label class="mt-0">分店</label>
         <select id="shopSel">
@@ -45,42 +45,44 @@
       </div>
     </div>
 
-    <label>當日景輝金價 (HKD/兩)</label>
+    <label>當日店鋪金價 (HKD/兩)</label>
     <input type="number" id="dailyPrice" placeholder="0" inputmode="decimal">
 
-    <label>重量 (毫兩)</label>
+    <label>收購重量 (毫兩)</label>
     <input type="number" id="weight" placeholder="0" inputmode="numeric">
 
-    <label>實付給客人的金額 (HKD)</label>
-    <input type="number" id="actualPayout" placeholder="$ 0" class="border-amber-300 text-amber-900 text-2xl" inputmode="numeric">
+    <label>實付客戶金額 (HKD)</label>
+    <input type="number" id="actualPayout" placeholder="$ 0" class="border-amber-400 text-amber-900 text-3xl" inputmode="numeric">
 
-    <button id="submitBtn" onclick="submitToSheet()" class="btn-submit">確認並上傳紀錄</button>
+    <button id="submitBtn" onclick="submitToSheet()" class="btn-submit">確認交易並上傳</button>
 
-    <div id="adminArea" class="admin-only mt-10 pt-6 border-t-2 border-dashed border-gray-200">
-      <h2 class="font-black text-gray-800 mb-4 flex justify-between items-center">
-        📋 全線收金紀錄 (管理員模式)
-        <span class="text-xs font-normal text-blue-500 cursor-pointer" onclick="fetchRecords()">刷新數據</span>
-      </h2>
-      <div id="recordList" class="space-y-2"></div>
+    <div id="adminArea" class="admin-only mt-12 pt-8 border-t-4 border-double border-gray-200">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="font-black text-xl text-gray-800">📋 全線數據監控</h2>
+        <button onclick="fetchRecords()" class="text-blue-500 text-sm font-bold">刷新</button>
+      </div>
+      <div id="recordList" class="space-y-4"></div>
     </div>
   </div>
 
 <script>
+  // 設置區域
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx5nyjyVUsRz_ZGIjwWp35BxGrNdaWIHhkyA0LPbC2fDcAsbfq217qiSE0AaEp4gDkc/exec';
-  const API_KEY = 'b59eca630c98a8dbc001ff5d576db229'; // 仍用於背景計算利潤
+  const API_KEY = 'b59eca630c98a8dbc001ff5d576db229'; // 僅供管理員背景利潤計算
   const BOSS_KEY = '888';
 
   let livePrice = 0;
 
-  // 背景獲取金價（僅供管理員看利潤）
-  async function getLivePrice() {
+  // 背景獲取即時金價 (為了給老闆算利潤)
+  async function updateLivePrice() {
     try {
       const res = await fetch(`https://api.metalpriceapi.com/v1/latest?api_key=${API_KEY}&base=USD&currencies=XAU`);
       const data = await res.json();
       livePrice = (1 / data.rates.XAU / (31.1035 / 37.429)) * 7.78;
-    } catch (e) { console.log("Price fetch skipped"); }
+    } catch (e) { console.log("Price fetch fail"); }
   }
 
+  // 切換管理員視圖
   function toggleAdminView() {
     const isBoss = document.getElementById('bossPass').value === BOSS_KEY;
     const area = document.getElementById('adminArea');
@@ -92,17 +94,18 @@
     }
   }
 
+  // 上傳數據
   async function submitToSheet() {
     const daily = parseFloat(document.getElementById('dailyPrice').value);
     const w = parseFloat(document.getElementById('weight').value);
     const payout = parseFloat(document.getElementById('actualPayout').value);
 
-    if (!daily || !w || !payout) return alert("請完整填寫所有欄位");
+    if (!daily || !w || !payout) return alert("請完整填寫所有數據再提交");
 
     const btn = document.getElementById('submitBtn');
     btn.innerText = "上傳中..."; btn.disabled = true;
 
-    // 背景計算利潤存檔
+    // 計算利潤 (API金價 - 實付)
     const marketVal = livePrice * (w / 1000);
     const profit = Math.floor(marketVal - payout);
 
@@ -117,37 +120,47 @@
 
     try {
       await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(record) });
-      alert("✅ 紀錄已成功提交！");
-      // 清空輸入
+      alert("✅ 數據已傳送至雲端。");
+      // 成功後清空所有輸入框
       document.getElementById('dailyPrice').value = "";
       document.getElementById('weight').value = "";
       document.getElementById('actualPayout').value = "";
-    } catch (e) { alert("上傳失敗"); }
-    btn.innerText = "確認並上傳紀錄"; btn.disabled = false;
+    } catch (e) {
+      alert("連線失敗，請檢查網絡");
+    } finally {
+      btn.innerText = "確認交易並上傳";
+      btn.disabled = false;
+    }
   }
 
+  // 獲取紀錄 (僅管理員可用)
   async function fetchRecords() {
     const list = document.getElementById('recordList');
+    list.innerHTML = "<p class='text-center text-gray-400'>讀取中...</p>";
     try {
       const res = await fetch(SCRIPT_URL);
       const data = await res.json();
       list.innerHTML = data.slice().reverse().map(r => `
-        <div class="history-card">
-          <div class="flex justify-between text-[10px] font-bold text-gray-400">
+        <div class="record-box">
+          <div class="flex justify-between text-[10px] font-black text-gray-400 mb-1">
             <span>${r.shop} - ${r.staff}</span>
-            <span>${new Date(r.time).toLocaleDateString()} ${new Date(r.time).getHours()}:${String(new Date(r.time).getMinutes()).padStart(2,'0')}</span>
+            <span>${new Date(r.time).toLocaleString('zh-HK', {hour12:false})}</span>
           </div>
-          <div class="flex justify-between items-center mt-1">
-            <span class="text-sm font-bold text-gray-700">${r.weight} 毫兩</span>
-            <span class="font-black text-amber-800">$${r.payout.toLocaleString()}</span>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-700 font-bold">重量: ${r.weight} 毫兩</span>
+            <span class="text-xl font-black text-amber-800">$${r.payout.toLocaleString()}</span>
           </div>
-          <div class="text-right text-green-600 font-bold text-[10px] mt-1">利潤: $${r.profit.toLocaleString()}</div>
+          <div class="text-right text-green-600 font-bold text-xs mt-2 border-t border-dashed pt-1">
+            當日利潤: $${r.profit.toLocaleString()}
+          </div>
         </div>
       `).join('');
-    } catch (e) { list.innerHTML = "讀取失敗"; }
+    } catch (e) {
+      list.innerHTML = "<p class='text-center text-red-400'>數據加載失敗</p>";
+    }
   }
 
-  getLivePrice();
+  updateLivePrice();
 </script>
 </body>
 </html>
