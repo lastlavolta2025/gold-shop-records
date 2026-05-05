@@ -3,120 +3,138 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>景輝金鋪管理系統 (HKD)</title>
+  <title>景輝金鋪管理系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f4f4f9; padding: 10px; }
+    body { font-family: "Segoe UI", "Microsoft JhengHei", sans-serif; background: #f3f4f6; padding: 12px; }
     .hidden { display: none; }
-    .card { background: white; padding: 20px; border-radius: 12px; shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
-    label { display: block; margin: 12px 0 4px; font-weight: 600; }
-    input[type="tel"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
-    button { width: 100%; padding: 14px; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-    .btn-blue { background: #0275d8; color: white; border: none; }
-    .btn-green { background: #28a745; color: white; border: none; }
-    .btn-gray { background: #6c757d; color: white; border: none; }
-    .result { font-weight: 700; font-size: 1.2rem; text-align: center; margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 8px; }
-    .price-refresh { color: #0275d8; text-decoration: underline; cursor: pointer; font-size: 0.8rem; font-weight: normal; }
+    .card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); max-width: 500px; margin: auto; border-top: 6px solid #b45309; }
+    label { display: block; margin: 14px 0 6px; font-weight: 700; color: #374151; font-size: 0.95rem; }
+    input[type="number"], input[type="tel"], select { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 1.1rem; transition: border-color 0.2s; }
+    input:focus { border-color: #b45309; outline: none; }
+    button { width: 100%; padding: 16px; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; margin-top: 12px; }
+    .btn-main { background: #b45309; color: white; border: none; }
+    .btn-main:active { transform: scale(0.98); background: #92400e; }
+    .btn-sub { background: #4b5563; color: white; border: none; }
+    .btn-sync { background: #059669; color: white; border: none; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+    .result-area { margin-top: 20px; padding: 15px; background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 12px; }
+    .history-item { background: white; padding: 12px; border-radius: 10px; border-left: 4px solid #b45309; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <div class="flex justify-between items-center">
-      <h1 class="text-xl font-bold text-yellow-700">景輝金鋪管理系統</h1>
-      <input type="password" id="bossPass" placeholder="管理密碼" class="w-20 text-xs p-1 border rounded" oninput="fetchRecords()">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-black text-amber-900">景輝金鋪系統</h1>
+      <input type="password" id="bossPass" placeholder="管理密碼" class="w-20 text-xs p-2 border rounded-lg bg-gray-50" oninput="fetchRecords()">
     </div>
 
-    <div id="homepage" class="mt-8 space-y-4">
-      <button onclick="openCalc('buyIn')" class="btn-blue">買入計算器 (Buy In)</button>
-      <button onclick="openCalc('sellOut')" class="btn-gray">賣出計算器 (Sell Out)</button>
+    <div id="homepage" class="space-y-4">
+      <button onclick="openCalc('buyIn')" class="btn-main text-lg">💰 買入計算器 (Buy In)</button>
+      <button onclick="openCalc('sellOut')" class="btn-sub text-lg">🛍️ 賣出計算器 (Sell Out)</button>
     </div>
 
-    <div id="calcArea" class="hidden mt-4">
-      <h2 id="calcTitle" class="text-center text-lg font-bold mb-4"></h2>
-      
+    <div id="calcArea" class="hidden">
       <div class="flex gap-2 mb-4">
-        <select id="shopSel" class="bg-gray-50"><option value="KF">KF 分店</option><option value="KS">KS 分店</option><option value="KL">KL 分店</option></select>
-        <select id="staffSel" class="bg-gray-50"><option value="員工1">員工 1</option><option value="員工2">員工 2</option><option value="員工3">員工 3</option><option value="員工4">員工 4</option></select>
+        <select id="shopSel" class="font-bold text-amber-800"><option value="KF">KF 分店</option><option value="KS">KS 分店</option><option value="KL">KL 分店</option></select>
+        <select id="staffSel" class="font-bold text-amber-800"><option value="員工1">員工 1</option><option value="員工2">員工 2</option><option value="員工3">員工 3</option><option value="員工4">員工 4</option></select>
       </div>
 
-      <label>即時金價 (兩): <span id="livePriceText">讀取中...</span> <span class="price-refresh" onclick="fetchLivePrice()">重新整理</span></label>
+      <div class="text-sm text-gray-500 mb-2 flex justify-between">
+        <span>市場實時金價: <span id="livePriceText" class="font-bold text-blue-600">讀取中...</span></span>
+        <span class="text-blue-500 underline cursor-pointer" onclick="fetchLivePrice()">刷新</span>
+      </div>
+
+      <div id="buyInOptions" class="grid grid-cols-2 gap-2 mb-4">
+        <button id="p500" onclick="togglePrem(500)" class="text-xs py-2 border-2 rounded-lg border-gray-200">扣 $500</button>
+        <button id="p1000" onclick="togglePrem(1000)" class="text-xs py-2 border-2 rounded-lg border-gray-200">扣 $1000</button>
+      </div>
+
+      <label>1. 當日景輝金價 (HKD/兩)</label>
+      <input type="number" id="dailyPrice" placeholder="例如 21800" inputmode="decimal">
+
+      <label>2. 重量 (毫兩)</label>
+      <input type="number" id="weight" placeholder="1兩=1000毫兩" inputmode="numeric">
+
+      <div class="flex items-center gap-2 mt-4">
+        <input type="checkbox" id="commission" checked class="w-5 h-5"> 
+        <span class="text-sm font-bold" id="commLabel">扣除 2% 佣金</span>
+      </div>
+
+      <div class="flex gap-4 mt-4">
+        <label class="flex items-center gap-1 font-normal"><input type="radio" name="purity" value="1" checked> 100%</label>
+        <label class="flex items-center gap-1 font-normal"><input type="radio" name="purity" value="0.75"> 75%</label>
+      </div>
+
+      <button onclick="calculate()" class="btn-main mt-6 text-xl">開始計算</button>
+
+      <div id="resultWrapper" class="hidden result-area">
+        <label class="text-amber-800 mt-0">3. 確認實付金額 (可修改)</label>
+        <input type="number" id="finalPayout" class="text-3xl font-black text-amber-900 border-amber-300 bg-white">
+        
+        <div id="profitBox" class="hidden mt-3 p-2 bg-green-100 text-green-700 text-center rounded font-bold"></div>
+        
+        <button id="syncBtn" onclick="submitToSheet()" class="btn-sync text-xl mt-4">✅ 確認並上傳紀錄</button>
+      </div>
       
-      <div id="buyInOptions" class="space-y-2 text-sm mt-2">
-        <label class="flex items-center gap-2 font-normal"><input type="checkbox" id="prem500" onclick="togglePrem(500)"> 從即時金價扣 $500</label>
-        <label class="flex items-center gap-2 font-normal"><input type="checkbox" id="prem1000" onclick="togglePrem(1000)"> 從即時金價扣 $1000</label>
-      </div>
-
-      <label>每日景輝金價 (HKD/兩):</label>
-      <input type="tel" id="dailyPrice" placeholder="輸入當日金價">
-
-      <label>重量 (毫兩):</label>
-      <input type="tel" id="weight" placeholder="1000毫兩 = 1兩">
-
-      <div class="flex items-center gap-2 mt-4 text-sm">
-        <input type="checkbox" id="commission" checked> <span id="commText">扣除 2% 佣金</span>
-      </div>
-
-      <label>純度 (%):</label>
-      <div class="flex gap-4 text-sm">
-        <label class="font-normal"><input type="radio" name="purity" value="1" checked> 100%</label>
-        <label class="font-normal"><input type="radio" name="purity" value="0.75"> 75%</label>
-      </div>
-
-      <button onclick="calculate()" class="btn-blue">計算金額</button>
-      <div id="resultBox" class="result hidden"></div>
-      <div id="profitBox" class="text-center text-green-600 font-bold mt-2 hidden"></div>
-      
-      <button id="syncBtn" onclick="submitToSheet()" class="btn-green hidden">確認並同步紀錄</button>
-      <button onclick="goHome()" class="btn-gray mt-8">返回主頁</button>
+      <button onclick="goHome()" class="text-gray-400 text-sm mt-8 w-full text-center underline">返回主頁</button>
     </div>
 
-    <div class="mt-10 border-t pt-6">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="font-bold">📋 收金紀錄 (全線)</h2>
-        <span class="text-xs text-blue-600 cursor-pointer" onclick="fetchRecords()">刷新數據</span>
-      </div>
-      <div id="recordList" class="space-y-3 text-sm"></div>
+    <div class="mt-10 border-t-2 border-gray-100 pt-6">
+      <h2 class="font-black text-gray-800 mb-4 flex justify-between items-center">
+        📋 收金紀錄 (全線)
+        <span class="text-xs font-normal text-blue-500" onclick="fetchRecords()">點擊刷新</span>
+      </h2>
+      <div id="recordList" class="space-y-3"></div>
     </div>
   </div>
 
 <script>
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxpgoJtmNqrG73j-nLe7M1CG0X3BwEk1xeulAHnJ7BhOLNNdami3NBOQdHsEgJlij89/exec';
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx5nyjyVUsRz_ZGIjwWp35BxGrNdaWIHhkyA0LPbC2fDcAsbfq217qiSE0AaEp4gDkc/exec';
   const API_KEY = 'b59eca630c98a8dbc001ff5d576db229';
   const BOSS_KEY = '888';
 
   let mode = 'buyIn';
   let livePrice = 0;
-  let lastCalc = null;
+  let premium = 0;
 
   async function fetchLivePrice() {
-    document.getElementById('livePriceText').innerText = "讀取中...";
+    document.getElementById('livePriceText').innerText = "更新中...";
     try {
       const res = await fetch(`https://api.metalpriceapi.com/v1/latest?api_key=${API_KEY}&base=USD&currencies=XAU`);
       const data = await res.json();
       livePrice = (1 / data.rates.XAU / (31.1035 / 37.429)) * 7.78;
-      document.getElementById('livePriceText').innerText = Math.round(livePrice);
-    } catch (e) { document.getElementById('livePriceText').innerText = "連線失敗"; }
+      document.getElementById('livePriceText').innerText = "$" + Math.round(livePrice);
+    } catch (e) { document.getElementById('livePriceText').innerText = "API失敗"; }
   }
 
   function openCalc(m) {
     mode = m;
     document.getElementById('homepage').classList.add('hidden');
     document.getElementById('calcArea').classList.remove('hidden');
-    document.getElementById('calcTitle').innerText = (m === 'buyIn' ? "買入計算器" : "賣出計算器");
-    document.getElementById('buyInOptions').className = (m === 'buyIn' ? "space-y-2 text-sm mt-2" : "hidden");
-    document.getElementById('commText').innerText = (m === 'buyIn' ? "扣除 2% 佣金" : "加上 2% 佣金");
+    document.getElementById('commLabel').innerText = (m === 'buyIn' ? "扣除 2% 佣金" : "加上 2% 佣金");
+    document.getElementById('buyInOptions').style.display = (m === 'buyIn' ? 'grid' : 'none');
     fetchLivePrice();
   }
 
   function goHome() {
     document.getElementById('calcArea').classList.add('hidden');
     document.getElementById('homepage').classList.remove('hidden');
+    document.getElementById('resultWrapper').classList.add('hidden');
   }
 
   function togglePrem(val) {
-    if (val === 500) document.getElementById('prem1000').checked = false;
-    else document.getElementById('prem500').checked = false;
+    const b500 = document.getElementById('p500');
+    const b1000 = document.getElementById('p1000');
+    if (premium === val) {
+      premium = 0;
+      b500.className = b1000.className = "text-xs py-2 border-2 rounded-lg border-gray-200";
+    } else {
+      premium = val;
+      b500.className = val === 500 ? "text-xs py-2 border-2 rounded-lg border-amber-600 bg-amber-50" : "text-xs py-2 border-2 rounded-lg border-gray-200";
+      b1000.className = val === 1000 ? "text-xs py-2 border-2 rounded-lg border-amber-600 bg-amber-50" : "text-xs py-2 border-2 rounded-lg border-gray-200";
+    }
   }
 
   function calculate() {
@@ -128,21 +146,44 @@
     if (!daily || !w) return alert("請輸入金價與重量");
 
     let payout = daily * (w / 1000) * purity;
-    if (mode === 'buyIn') {
-      if (comm) payout *= 0.98;
-    } else {
-      if (comm) payout *= 1.02;
-    }
+    if (mode === 'buyIn' && comm) payout *= 0.98;
+    if (mode === 'sellOut' && comm) payout *= 1.02;
     payout = Math.ceil(payout);
 
-    let premium = 0;
-    if (document.getElementById('prem500').checked) premium = 500;
-    if (document.getElementById('prem1000').checked) premium = 1000;
-    
-    const marketVal = (livePrice - premium) * (w / 1000) * purity;
-    const profit = (mode === 'buyIn' ? Math.floor(marketVal - payout) : Math.floor(payout - marketVal));
+    // 顯示結果區域並填入建議金額
+    document.getElementById('resultWrapper').classList.remove('hidden');
+    document.getElementById('finalPayout').value = payout;
 
-    lastCalc = {
+    // 計算利潤 (老闆密碼模式)
+    updateProfitDisplay(payout, w, purity);
+  }
+
+  function updateProfitDisplay(payout, w, purity) {
+    if (document.getElementById('bossPass').value === BOSS_KEY) {
+      const marketVal = (livePrice - premium) * (w / 1000) * purity;
+      const profit = mode === 'buyIn' ? Math.floor(marketVal - payout) : Math.floor(payout - marketVal);
+      const pBox = document.getElementById('profitBox');
+      pBox.innerText = `估計利潤: $${profit.toLocaleString()}`;
+      pBox.classList.remove('hidden');
+    }
+  }
+
+  async function submitToSheet() {
+    const btn = document.getElementById('syncBtn');
+    const payout = parseFloat(document.getElementById('finalPayout').value);
+    const daily = parseFloat(document.getElementById('dailyPrice').value);
+    const w = parseFloat(document.getElementById('weight').value);
+    const purity = parseFloat(document.querySelector('input[name="purity"]:checked').value);
+
+    if (!payout) return alert("請輸入實付金額");
+
+    btn.innerText = "同步數據中..."; btn.disabled = true;
+
+    // 計算利潤準備發送
+    const marketVal = (livePrice - premium) * (w / 1000) * purity;
+    const profit = mode === 'buyIn' ? Math.floor(marketVal - payout) : Math.floor(payout - marketVal);
+
+    const data = {
       shop: document.getElementById('shopSel').value,
       staff: document.getElementById('staffSel').value,
       dailyPrice: daily,
@@ -151,36 +192,17 @@
       profit: profit
     };
 
-    const resBox = document.getElementById('resultBox');
-    resBox.innerText = (mode === 'buyIn' ? "應付客戶: $" : "應收客戶: $") + payout.toLocaleString();
-    resBox.classList.remove('hidden');
-    
-    if (document.getElementById('bossPass').value === BOSS_KEY) {
-      const pBox = document.getElementById('profitBox');
-      pBox.innerText = "利潤: $" + profit.toLocaleString();
-      pBox.classList.remove('hidden');
-    }
-
-    document.getElementById('syncBtn').classList.remove('hidden');
-  }
-
-  async function submitToSheet() {
-    if (!lastCalc) return;
-    const btn = document.getElementById('syncBtn');
-    btn.innerText = "上傳中..."; btn.disabled = true;
-    
     try {
       await fetch(SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
-        body: JSON.stringify(lastCalc)
+        body: JSON.stringify(data)
       });
-      alert("✅ 紀錄已同步至 Google 表格");
-      document.getElementById('resultBox').classList.add('hidden');
-      btn.classList.add('hidden');
+      alert("✅ 紀錄已同步！");
+      goHome();
       fetchRecords();
-    } catch (e) { alert("上傳失敗"); }
-    btn.innerText = "確認並同步紀錄"; btn.disabled = false;
+    } catch (e) { alert("上傳出錯，請重試"); }
+    btn.innerText = "✅ 確認並上傳紀錄"; btn.disabled = false;
   }
 
   async function fetchRecords() {
@@ -189,20 +211,20 @@
     try {
       const res = await fetch(SCRIPT_URL);
       const data = await res.json();
-      list.innerHTML = data.slice().reverse().map(r => `
-        <div class="p-3 bg-white border rounded-lg shadow-sm">
-          <div class="flex justify-between font-bold text-xs text-gray-500 mb-1">
+      list.innerHTML = data.slice().reverse().slice(0, 15).map(r => `
+        <div class="history-item">
+          <div class="flex justify-between font-bold text-[10px] text-gray-400 uppercase">
             <span>${r.shop} - ${r.staff}</span>
-            <span>${new Date(r.time).getHours()}:${String(new Date(r.time).getMinutes()).padStart(2,'0')}</span>
+            <span>${new Date(r.time).toLocaleTimeString('zh-HK', {hour12:false, hour:'2-digit', minute:'2-digit'})}</span>
           </div>
-          <div class="flex justify-between items-center">
-            <span>重量: ${r.weight} 毫兩</span>
-            <span class="text-blue-600 font-bold">$${r.payout.toLocaleString()}</span>
+          <div class="flex justify-between items-center mt-1">
+            <span class="text-sm font-medium text-gray-700">${r.weight} 毫兩</span>
+            <span class="text-lg font-black text-amber-700">$${r.payout.toLocaleString()}</span>
           </div>
-          ${isBoss ? `<div class="text-right text-green-600 font-bold border-t mt-1 pt-1 text-xs">利潤: $${r.profit}</div>` : ''}
+          ${isBoss ? `<div class="text-right text-green-600 font-bold text-[10px] border-t mt-1 pt-1">利潤: $${r.profit}</div>` : ''}
         </div>
       `).join('');
-    } catch (e) { list.innerHTML = "尚未有紀錄"; }
+    } catch (e) { list.innerHTML = "<p class='text-center text-gray-400'>暫無紀錄</p>"; }
   }
 
   fetchRecords();
