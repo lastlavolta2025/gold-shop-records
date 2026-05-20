@@ -89,25 +89,25 @@
     try {
       const res = await fetch(`https://api.metalpriceapi.com/v1/latest?api_key=${API_KEY}&base=USD&currencies=XAU`);
       const data = await res.json();
-      livePrice = (1 / data.rates.XAU / (31.1035 / 37.429)) * 7.78;
+      // 換算成 HKD/兩
+      livePrice = Math.round((1 / data.rates.XAU / (31.1035 / 37.429)) * 7.78);
     } catch (e) { console.log("Price fetch skipped"); }
   }
 
   function toggleCustomPurity() {
     const sel = document.getElementById('puritySel').value;
     const div = document.getElementById('customPurityDiv');
-    if (sel === 'custom') {
-      div.classList.remove('hidden');
-    } else {
-      div.classList.add('hidden');
-    }
+    div.style.display = (sel === 'custom') ? 'block' : 'none';
   }
 
   function toggleAdminView() {
     const isBoss = document.getElementById('bossPass').value === BOSS_KEY;
     const area = document.getElementById('adminArea');
     area.style.display = isBoss ? 'block' : 'none';
-    if (isBoss) fetchRecords();
+    if (isBoss) {
+      updateLivePrice(); // 打開管理員面板時順便刷新最新金價
+      fetchRecords();
+    }
   }
 
   async function submitToSheet() {
@@ -115,7 +115,6 @@
     const w = parseFloat(document.getElementById('weight').value);
     const payout = parseFloat(document.getElementById('actualPayout').value);
     
-    // 獲取純度數值與標籤
     const puritySel = document.getElementById('puritySel');
     let purityVal = 1;
     let purityLabel = puritySel.options[puritySel.selectedIndex].text;
@@ -134,7 +133,10 @@
     const btn = document.getElementById('submitBtn');
     btn.innerText = "上傳中..."; btn.disabled = true;
 
-    // 精準利潤計算 = (實時金價 * 重量/1000 * 純度) - 實付金額
+    // 先確保拿到最新的 API 國際金價
+    await updateLivePrice();
+
+    // 利潤 = (實時國際金價 * 重量/1000 * 純度) - 實付金額
     const marketVal = livePrice * (w / 1000) * purityVal;
     const profit = Math.floor(marketVal - payout);
 
@@ -144,6 +146,7 @@
       dailyPrice: daily,
       weight: w,
       purityLabel: purityLabel,
+      livePrice: livePrice, // 新增：傳送當時的國際金價
       payout: payout,
       profit: profit
     };
@@ -177,10 +180,11 @@
             <span>${r.shop} - ${r.staff}</span>
             <span>${new Date(r.time).toLocaleString('zh-HK', {hour12:false})}</span>
           </div>
-          <div class="text-xs text-gray-500 mb-1">
-            成色: <span class="text-gray-700 font-bold">${r.purityLabel || "足金(100%)"}</span>
+          <div class="text-xs text-gray-500 mb-1 flex justify-between">
+            <span>成色: <span class="text-gray-700 font-bold">${r.purityLabel || "足金(100%)"}</span></span>
+            <span>國際金價: <span class="text-blue-600 font-bold">$${r.livePrice || 0}/兩</span></span>
           </div>
-          <div class="flex justify-between items-center">
+          <div class="flex justify-between items-center mt-1">
             <span class="text-sm font-bold text-gray-700">重量: ${r.weight} 毫兩</span>
             <span class="text-xl font-black text-amber-800">$${r.payout.toLocaleString()}</span>
           </div>
