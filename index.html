@@ -68,7 +68,10 @@
     <div id="purityArea">
       <label>黃金成色 (淨度)</label>
       <select id="puritySel" onchange="toggleCustomPurity()">
+        <option value="1">足金 (9999 / 100%)</option>
+        <option value="0.99">99金 (999 / 99%)</option>
         <option value="0.95">十足金/舊足金</option>
+        <option value="0.916">22K 金 (91.6%)</option>
         <option value="0.75">18K 金 (75%)</option>
         <option value="0.585">14K 金 (58.5%)</option>
         <option value="custom">自訂純度 (%)</option>
@@ -191,7 +194,7 @@
       document.getElementById('weight').value = "";
       document.getElementById('actualPayout').value = "";
       document.getElementById('customPurityInput').value = "";
-      document.getElementById('puritySel').value = "0.95"; // 預設回十足金/舊足金
+      document.getElementById('puritySel').value = "1"; // 預設回足金 9999
       document.getElementById('diamondCheck').checked = false;
       document.getElementById('platinumCheck').checked = false;
       togglePlatinumMode();
