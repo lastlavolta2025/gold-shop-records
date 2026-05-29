@@ -97,6 +97,7 @@
   </div>
 
 <script>
+  // 💡 請確保此處的網址與您 Google Apps Script 部署的網址一致
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx5nyjyVUsRz_ZGIjwWp35BxGrNdaWIHhkyA0LPbC2fDcAsbfq217qiSE0AaEp4gDkc/exec';
   const API_KEY = 'b59eca630c98a8dbc001ff5d576db229'; 
   const BOSS_KEY = '888';
@@ -149,7 +150,7 @@
 
     if (isPlat) {
       purityLabel = "鉑金";
-      purityVal = 0;
+      purityVal = 0; // 鉑金不計入黃金成色
     } else {
       const puritySel = document.getElementById('puritySel');
       if (puritySel.value === 'custom') {
@@ -168,10 +169,24 @@
 
     await updateLivePrice();
 
+    // 1. 計算預估利潤
     let profit = 0;
+    let marketVal = 0;
     if (!isPlat) {
-      const marketVal = livePrice * (w / 1000) * purityVal;
+      marketVal = livePrice * (w / 1000) * purityVal;
       profit = Math.floor(marketVal - payout);
+    }
+
+    // 2. 🆕 計算新需求：折合足金淨重 (兩) -> 毫兩 / 1000 * 純度 (鉑金為 0)
+    let fineGoldWeight = 0;
+    if (!isPlat) {
+      fineGoldWeight = (w / 1000) * purityVal;
+    }
+
+    // 3. 🆕 計算新需求：收金利潤率 (%) -> (利潤 / 黃金市場價值) * 100%
+    let profitMargin = 0;
+    if (!isPlat && marketVal > 0) {
+      profitMargin = parseFloat(((profit / marketVal) * 100).toFixed(2)); // 保留兩位小數
     }
 
     const record = {
@@ -184,7 +199,9 @@
       payout: payout,
       profit: profit,
       hasDiamond: hasDiam,
-      isPlatinum: isPlat
+      isPlatinum: isPlat,
+      fineGoldWeight: fineGoldWeight, // 🆕 新增欄位上傳
+      profitMargin: profitMargin       // 🆕 新增欄位上傳
     };
 
     try {
@@ -194,7 +211,7 @@
       document.getElementById('weight').value = "";
       document.getElementById('actualPayout').value = "";
       document.getElementById('customPurityInput').value = "";
-      document.getElementById('puritySel').value = "1"; // 預設回足金 9999
+      document.getElementById('puritySel').value = "1"; 
       document.getElementById('diamondCheck').checked = false;
       document.getElementById('platinumCheck').checked = false;
       togglePlatinumMode();
@@ -221,10 +238,10 @@
           </div>
           <div class="text-xs text-gray-500 mb-1 flex justify-between">
             <span>類別: <span class="text-gray-700 font-bold">${r.purityLabel}</span></span>
-            <span>API金價(-500): <span class="text-blue-600 font-bold">$${r.livePrice || 0}/兩</span></span>
+            <span>利潤率: <span class="text-purple-600 font-bold">${r.profitMargin || 0}%</span></span>
           </div>
           <div class="text-[10px] text-gray-400 mb-1">
-            標記: ${r.hasDiamond === 'YES' ? '💎 含鑽石 ' : ''} ${r.isPlatinum === 'YES' ? '⚪ 鉑金' : ''}
+            標記: ${r.hasDiamond === 'YES' ? '💎 含鑽石 ' : ''} ${r.isPlatinum === 'YES' ? '⚪ 鉑金' : ''} | 折合: ${(r.fineGoldWeight || 0).toFixed(3)} 兩
           </div>
           <div class="flex justify-between items-center mt-1">
             <span class="text-sm font-bold text-gray-700">重量: ${r.weight} 毫兩</span>
