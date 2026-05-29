@@ -97,7 +97,6 @@
   </div>
 
 <script>
-  // 💡 請確保此處的網址與您 Google Apps Script 部署的網址一致
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx5nyjyVUsRz_ZGIjwWp35BxGrNdaWIHhkyA0LPbC2fDcAsbfq217qiSE0AaEp4gDkc/exec';
   const API_KEY = 'b59eca630c98a8dbc001ff5d576db229'; 
   const BOSS_KEY = '888';
@@ -113,12 +112,14 @@
     } catch (e) { console.log("Price fetch skipped"); }
   }
 
+  // 自動控制自訂純度輸入框
   function toggleCustomPurity() {
     const sel = document.getElementById('puritySel').value;
     const div = document.getElementById('customPurityDiv');
     div.style.display = (sel === 'custom') ? 'block' : 'none';
   }
 
+  // 自動控制鉑金與黃金區域的隱現
   function togglePlatinumMode() {
     const isPlat = document.getElementById('platinumCheck').checked;
     const purityArea = document.getElementById('purityArea');
@@ -150,7 +151,7 @@
 
     if (isPlat) {
       purityLabel = "鉑金";
-      purityVal = 0; // 鉑金不計入黃金成色
+      purityVal = 0; 
     } else {
       const puritySel = document.getElementById('puritySel');
       if (puritySel.value === 'custom') {
@@ -169,24 +170,24 @@
 
     await updateLivePrice();
 
-    // 1. 計算預估利潤
     let profit = 0;
     let marketVal = 0;
-    if (!isPlat) {
+    let fineGoldWeight = 0;
+    let profitMargin = 0;
+
+    // 💡 邏輯修正：只有在「不是鉑金」且「不含鑽石」的純黃金情況下，才去算利潤與重量
+    if (!isPlat && !hasDiam) {
       marketVal = livePrice * (w / 1000) * purityVal;
       profit = Math.floor(marketVal - payout);
-    }
-
-    // 2. 🆕 計算新需求：折合足金淨重 (兩) -> 毫兩 / 1000 * 純度 (鉑金為 0)
-    let fineGoldWeight = 0;
-    if (!isPlat) {
       fineGoldWeight = (w / 1000) * purityVal;
-    }
-
-    // 3. 🆕 計算新需求：收金利潤率 (%) -> (利潤 / 黃金市場價值) * 100%
-    let profitMargin = 0;
-    if (!isPlat && marketVal > 0) {
-      profitMargin = parseFloat(((profit / marketVal) * 100).toFixed(2)); // 保留兩位小數
+      if (marketVal > 0) {
+        profitMargin = parseFloat(((profit / marketVal) * 100).toFixed(2));
+      }
+    } else {
+      // 💎 如果是鑽石，或是 ⚪ 鉑金：
+      profit = 0;          // 預估利潤強制歸 0
+      fineGoldWeight = 0;  // 折合足金淨重強制歸 0
+      profitMargin = 0;    // 利潤率強制歸 0
     }
 
     const record = {
@@ -194,14 +195,14 @@
       staff: document.getElementById('staffSel').value,
       dailyPrice: daily,
       weight: w,
-      purityLabel: purityLabel,
-      livePrice: isPlat ? 0 : livePrice,
+      purityLabel: isPlat ? "鉑金" : (hasDiam ? `黃金 (${purityLabel} + 鑽石)` : purityLabel),
+      livePrice: (isPlat || hasDiam) ? 0 : livePrice,
       payout: payout,
       profit: profit,
       hasDiamond: hasDiam,
       isPlatinum: isPlat,
-      fineGoldWeight: fineGoldWeight, // 🆕 新增欄位上傳
-      profitMargin: profitMargin       // 🆕 新增欄位上傳
+      fineGoldWeight: fineGoldWeight, 
+      profitMargin: profitMargin       
     };
 
     try {
