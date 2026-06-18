@@ -44,9 +44,6 @@
       </label>
     </div>
 
-    <label class="text-red-600">👤 經手員工姓名/編號 (必填) *</label>
-    <input type="text" id="staffInput" placeholder="請手動輸入您的姓名" autocomplete="off">
-
     <label>當日店鋪金價 (HKD/兩)</label>
     <input type="number" id="dailyPrice" placeholder="0" inputmode="decimal">
 
@@ -118,7 +115,6 @@
     div.style.display = (sel === 'custom') ? 'block' : 'none';
   }
 
-  // 自動控制鉑金與黃金區域的隱現
   function togglePlatinumMode() {
     const isPlat = document.getElementById('platinumCheck').checked;
     const purityArea = document.getElementById('purityArea');
@@ -136,9 +132,8 @@
   }
 
   async function submitToSheet() {
-    // 🔍 抓取分店（Radio Box）與員工（手動輸入）
+    // 🔍 只抓取分店 Radio Box
     const selectedShop = document.querySelector('input[name="shopRadio"]:checked');
-    const staffName = document.getElementById('staffInput').value.trim();
 
     const daily = parseFloat(document.getElementById('dailyPrice').value);
     const w = parseFloat(document.getElementById('weight').value);
@@ -147,13 +142,8 @@
     const isPlat = document.getElementById('platinumCheck').checked;
     const hasDiam = document.getElementById('diamondCheck').checked;
 
-    // 🚨 【終極防漏驗證】
+    // 🚨 【核心防漏驗證】只檢查有沒有選分店，以及其他必填數據
     if (!selectedShop) return alert("❌ 提交失敗：請先勾選您所在的分店 (KF / KS / KL)！");
-    if (staffName === "") {
-      alert("❌ 提交失敗：請填寫經手員工姓名！");
-      document.getElementById('staffInput').focus();
-      return;
-    }
     if (!daily || !w || !payout) return alert("請完整填寫金價、重量及實付金額再提交");
 
     let purityVal = 1;
@@ -199,8 +189,8 @@
     }
 
     const record = {
-      shop: selectedShop.value, // 自動獲取 "KF", "KS" 或 "KL"
-      staff: staffName,         // 獲取手打的員工姓名
+      shop: selectedShop.value, 
+      staff: "門市", // 👈 自動填寫固定文字，維持原有 Google 試算表欄位結構
       dailyPrice: daily,
       weight: w,
       purityLabel: isPlat ? "鉑金" : (hasDiam ? `黃金 (${purityLabel} + 鑽石)` : purityLabel),
@@ -226,9 +216,8 @@
       document.getElementById('diamondCheck').checked = false;
       document.getElementById('platinumCheck').checked = false;
       
-      // ✨ 成功提交後，把分店和員工欄位也清空，逼下一單重新選擇與填寫
+      // 成功提交後，把分店也清除勾選，逼下一單重新點選
       selectedShop.checked = false;
-      document.getElementById('staffInput').value = "";
       
       togglePlatinumMode();
       toggleCustomPurity();
