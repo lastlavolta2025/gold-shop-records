@@ -15,8 +15,9 @@
     .btn-submit:active { transform: scale(0.96); }
     .admin-only { display: none; }
     .record-box { background: #f9fafb; padding: 15px; border-radius: 12px; border-left: 5px solid #d97706; margin-bottom: 12px; }
-    .checkbox-container { display: flex; align-items: center; background: #f9fafb; padding: 12px; border-radius: 12px; border: 2px solid #e5e7eb; cursor: pointer; }
-    .checkbox-container input { width: auto; margin-right: 10px; transform: scale(1.3); }
+    .checkbox-container { display: flex; align-items: center; justify-content: center; background: #f9fafb; padding: 12px; border-radius: 12px; border: 2px solid #e5e7eb; cursor: pointer; transition: 0.2s; }
+    .checkbox-container:hover { background: #fffbeb; border-color: #d97706; }
+    .checkbox-container input { width: auto; margin-right: 8px; transform: scale(1.3); cursor: pointer; }
   </style>
 </head>
 <body>
@@ -27,25 +28,24 @@
       <input type="password" id="bossPass" placeholder="管理" class="w-10 text-[8px] p-1 border rounded opacity-20" oninput="toggleAdminView()">
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label class="mt-0">分店</label>
-        <select id="shopSel">
-          <option value="KF">KF 分店</option>
-          <option value="KS">KS 分店</option>
-          <option value="KL">KL 分店</option>
-        </select>
-      </div>
-      <div>
-        <label class="mt-0">員工</label>
-        <select id="staffSel">
-          <option value="員工1">員工 1</option>
-          <option value="員工2">員工 2</option>
-          <option value="員工3">員工 3</option>
-          <option value="員工4">員工 4</option>
-        </select>
-      </div>
+    <label class="mt-0 text-red-600">📍 所屬分店 (必填) *</label>
+    <div class="grid grid-cols-3 gap-3">
+      <label class="checkbox-container m-0">
+        <input type="radio" name="shopRadio" value="KF">
+        <span class="text-sm font-bold text-gray-700">KF 店</span>
+      </label>
+      <label class="checkbox-container m-0">
+        <input type="radio" name="shopRadio" value="KS">
+        <span class="text-sm font-bold text-gray-700">KS 店</span>
+      </label>
+      <label class="checkbox-container m-0">
+        <input type="radio" name="shopRadio" value="KL">
+        <span class="text-sm font-bold text-gray-700">KL 店</span>
+      </label>
     </div>
+
+    <label class="text-red-600">👤 經手員工姓名/編號 (必填) *</label>
+    <input type="text" id="staffInput" placeholder="請手動輸入您的姓名" autocomplete="off">
 
     <label>當日店鋪金價 (HKD/兩)</label>
     <input type="number" id="dailyPrice" placeholder="0" inputmode="decimal">
@@ -55,11 +55,11 @@
 
     <label>商品特例標記</label>
     <div class="grid grid-cols-2 gap-3">
-      <label class="checkbox-container m-0">
+      <label class="checkbox-container m-0 !justify-start">
         <input type="checkbox" id="diamondCheck">
         <span class="text-sm font-bold text-gray-700">💎 含鑽石</span>
       </label>
-      <label class="checkbox-container m-0">
+      <label class="checkbox-container m-0 !justify-start">
         <input type="checkbox" id="platinumCheck" onchange="togglePlatinumMode()">
         <span class="text-sm font-bold text-gray-700">⚪ 鉑金類別</span>
       </label>
@@ -112,7 +112,6 @@
     } catch (e) { console.log("Price fetch skipped"); }
   }
 
-  // 自動控制自訂純度輸入框
   function toggleCustomPurity() {
     const sel = document.getElementById('puritySel').value;
     const div = document.getElementById('customPurityDiv');
@@ -137,6 +136,10 @@
   }
 
   async function submitToSheet() {
+    // 🔍 抓取分店（Radio Box）與員工（手動輸入）
+    const selectedShop = document.querySelector('input[name="shopRadio"]:checked');
+    const staffName = document.getElementById('staffInput').value.trim();
+
     const daily = parseFloat(document.getElementById('dailyPrice').value);
     const w = parseFloat(document.getElementById('weight').value);
     const payout = parseFloat(document.getElementById('actualPayout').value);
@@ -144,7 +147,14 @@
     const isPlat = document.getElementById('platinumCheck').checked;
     const hasDiam = document.getElementById('diamondCheck').checked;
 
-    if (!daily || !w || !payout) return alert("請完整填寫所有數據再提交");
+    // 🚨 【終極防漏驗證】
+    if (!selectedShop) return alert("❌ 提交失敗：請先勾選您所在的分店 (KF / KS / KL)！");
+    if (staffName === "") {
+      alert("❌ 提交失敗：請填寫經手員工姓名！");
+      document.getElementById('staffInput').focus();
+      return;
+    }
+    if (!daily || !w || !payout) return alert("請完整填寫金價、重量及實付金額再提交");
 
     let purityVal = 1;
     let purityLabel = "黃金";
@@ -175,7 +185,6 @@
     let fineGoldWeight = 0;
     let profitMargin = 0;
 
-    // 💡 邏輯修正：只有在「不是鉑金」且「不含鑽石」的純黃金情況下，才去算利潤與重量
     if (!isPlat && !hasDiam) {
       marketVal = livePrice * (w / 1000) * purityVal;
       profit = Math.floor(marketVal - payout);
@@ -184,15 +193,14 @@
         profitMargin = parseFloat(((profit / marketVal) * 100).toFixed(2));
       }
     } else {
-      // 💎 如果是鑽石，或是 ⚪ 鉑金：
-      profit = 0;          // 預估利潤強制歸 0
-      fineGoldWeight = 0;  // 折合足金淨重強制歸 0
-      profitMargin = 0;    // 利潤率強制歸 0
+      profit = 0;          
+      fineGoldWeight = 0;  
+      profitMargin = 0;    
     }
 
     const record = {
-      shop: document.getElementById('shopSel').value,
-      staff: document.getElementById('staffSel').value,
+      shop: selectedShop.value, // 自動獲取 "KF", "KS" 或 "KL"
+      staff: staffName,         // 獲取手打的員工姓名
       dailyPrice: daily,
       weight: w,
       purityLabel: isPlat ? "鉑金" : (hasDiam ? `黃金 (${purityLabel} + 鑽石)` : purityLabel),
@@ -208,6 +216,8 @@
     try {
       await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(record) });
       alert("✅ 數據已成功上傳雲端母表！");
+      
+      // 成功後重置表單數據
       document.getElementById('dailyPrice').value = "";
       document.getElementById('weight').value = "";
       document.getElementById('actualPayout').value = "";
@@ -215,6 +225,11 @@
       document.getElementById('puritySel').value = "1"; 
       document.getElementById('diamondCheck').checked = false;
       document.getElementById('platinumCheck').checked = false;
+      
+      // ✨ 成功提交後，把分店和員工欄位也清空，逼下一單重新選擇與填寫
+      selectedShop.checked = false;
+      document.getElementById('staffInput').value = "";
+      
       togglePlatinumMode();
       toggleCustomPurity();
     } catch (e) {
