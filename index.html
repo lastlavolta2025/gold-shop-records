@@ -28,22 +28,28 @@
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 15px; }
     .modal-card { background: white; width: 100%; max-width: 420px; border-radius: 20px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-height: 90vh; overflow-y: auto; }
 
-    /* 🖨️ A4 雙聯頁面列印專屬 CSS 樣式 (iOS AirPrint 強力優化) */
+    /* 🖨️ iOS Safari & AirPrint 專屬列印修正 CSS */
     @media print {
-      body * { visibility: hidden !important; }
-      #printArea, #printArea * { visibility: visible !important; }
+      body * { display: none !important; }
+      #printArea, #printArea * { display: block !important; }
       #printArea {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         width: 100% !important;
-        background: white !important;
-        padding: 0 !important;
         margin: 0 !important;
+        padding: 0 !important;
       }
+      #printArea table { display: table !important; }
+      #printArea tr { display: table-row !important; }
+      #printArea td, #printArea th { display: table-cell !important; }
+      #printArea div { display: block !important; }
+      #printArea span { display: inline !important; }
+      #printArea strong { display: inline !important; }
+
       @page {
         size: A4 portrait;
-        margin: 8mm;
+        margin: 6mm;
       }
     }
   </style>
@@ -249,7 +255,6 @@
       <div id="eodLoading" class="text-center py-8 text-gray-400 font-bold">正在讀取雲端當日數據...</div>
 
       <div id="eodContent" class="hidden space-y-4">
-        <!-- 今日總計數據卡 -->
         <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 grid grid-cols-3 gap-2 text-center">
           <div>
             <div class="text-[10px] text-gray-500 font-bold">今日交易筆數</div>
@@ -265,11 +270,9 @@
           </div>
         </div>
 
-        <!-- 當日交易明細清單 -->
         <div class="text-xs font-bold text-gray-600 mb-1">今日交易明細紀錄：</div>
         <div id="eodList" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
 
-        <!-- 列印按鈕 -->
         <button onclick="printA4DualReceipt()" class="w-full py-3 bg-amber-800 text-white font-black rounded-xl shadow-md hover:bg-amber-900 flex items-center justify-center gap-2">
           🖨️ 印出 A4 雙聯日結憑證 (AirPrint)
         </button>
@@ -277,15 +280,14 @@
     </div>
   </div>
 
-  <!-- 🖨️ 隱藏的 A4 雙聯單列印區域 (僅在列印時被觸發呈現) -->
-  <div id="printArea" class="hidden"></div>
+  <!-- 🖨️ 專屬 A4 雙聯列印容器 -->
+  <div id="printArea" style="display:none;"></div>
 
 <script>
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx5nyjyVUsRz_ZGIjwWp35BxGrNdaWIHhkyA0LPbC2fDcAsbfq217qiSE0AaEp4gDkc/exec';
   const API_KEY = 'b59eca630c98a8dbc001ff5d576db229'; 
   const BOSS_KEY = '888';
 
-  // 🔑 三家分店專屬對賬密碼設定 (可依需求自由更換)
   const STORE_PASSWORDS = {
     'KF': '111',
     'KS': '222',
@@ -365,7 +367,6 @@
     }
   }
 
-  // 1. 預覽 Modal 控制
   function openPreviewModal() {
     const selectedShop = document.querySelector('input[name="shopRadio"]:checked');
     const daily = parseFloat(document.getElementById('dailyPrice').value);
@@ -411,7 +412,6 @@
     document.getElementById('previewModal').classList.add('hidden');
   }
 
-  // 2. 門市對賬驗證控制
   function openEODAuthModal() {
     document.getElementById('eodPassInput').value = "";
     document.getElementById('eodAuthModal').classList.remove('hidden');
@@ -433,7 +433,6 @@
     }
   }
 
-  // 3. 讀取並展示門市今日對賬清單
   async function openEODSummaryModal(shop) {
     currentEODShop = shop;
     document.getElementById('eodShopTitle').innerText = shop;
@@ -448,7 +447,6 @@
       const now = new Date();
       const todayStr = now.toDateString();
 
-      // 🔍 嚴格過濾：僅抓取「該分店」且「今天」的交易
       currentEODRecords = allRecords.filter(r => {
         if (!r.time) return false;
         const rDate = new Date(r.time);
@@ -496,7 +494,7 @@
     document.getElementById('eodSummaryModal').classList.add('hidden');
   }
 
-  // 🖨️ 生成並觸發 AirPrint 列印 A4 雙聯日結單
+  // 🖨️ 專門優化 iOS Safari 與 AirPrint 的列印調用邏輯
   function printA4DualReceipt() {
     const printArea = document.getElementById('printArea');
     const nowStr = new Date().toLocaleString('zh-HK', { hour12: false });
@@ -508,41 +506,40 @@
       totalPayout += Number(r.payout || 0);
       totalGoldWeight += Number(r.fineGoldWeight || 0);
       return `
-        <tr style="border-bottom: 1px solid #e5e7eb; text-align: left;">
-          <td style="padding: 4px;">${new Date(r.time).toLocaleTimeString('zh-HK', {hour:'2-digit', minute:'2-digit', hour12:false})}</td>
-          <td style="padding: 4px;">${r.purityLabel}</td>
-          <td style="padding: 4px;">${r.weight} 毫兩<br><small style="color:#666;">${formatToTraditionalTael(r.weight)}</small></td>
-          <td style="padding: 4px; text-align: right; font-weight: bold;">$${Number(r.payout).toLocaleString()}</td>
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+          <td style="padding: 4px; font-size: 10px;">${new Date(r.time).toLocaleTimeString('zh-HK', {hour:'2-digit', minute:'2-digit', hour12:false})}</td>
+          <td style="padding: 4px; font-size: 10px;">${r.purityLabel}</td>
+          <td style="padding: 4px; font-size: 10px;">${r.weight} 毫兩 (${formatToTraditionalTael(r.weight)})</td>
+          <td style="padding: 4px; font-size: 10px; text-align: right; font-weight: bold;">$${Number(r.payout).toLocaleString()}</td>
         </tr>
       `;
     }).join('');
 
-    // 單張 A5 內容模板
     const singleReceiptHtml = (titleTag) => `
-      <div style="padding: 10px; border: 2px solid #92400e; border-radius: 10px; background: #fff; font-size: 11px; line-height: 1.4;">
-        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #92400e; padding-bottom: 5px; margin-bottom: 8px;">
+      <div style="padding: 12px; border: 2px solid #92400e; border-radius: 10px; background: #fff; font-size: 11px; margin-bottom: 5px;">
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #92400e; padding-bottom: 4px; margin-bottom: 6px;">
           <div>
-            <h2 style="font-size: 15px; font-weight: 900; color: #78350f; margin: 0;">景輝金鋪 - 門市每日收購結算單</h2>
-            <span style="font-weight: bold; color: #4b5563;">[ ${titleTag} ]</span>
+            <span style="font-size: 14px; font-weight: 900; color: #78350f;">景輝金鋪 - 門市每日收購結算單</span>
+            <span style="font-weight: bold; color: #4b5563; font-size: 11px; margin-left: 6px;">[ ${titleTag} ]</span>
           </div>
           <div style="text-align: right; font-size: 10px; color: #4b5563;">
-            <div><strong>分店:</strong> ${currentEODShop} 店</div>
-            <div><strong>列印時間:</strong> ${nowStr}</div>
+            <span><strong>分店:</strong> ${currentEODShop} 店 | </span>
+            <span><strong>時間:</strong> ${nowStr}</span>
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; background: #fffbeb; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; font-weight: bold;">
-          <span>今日總筆數: <strong>${currentEODRecords.length} 筆</strong></span>
-          <span>折合足金總重: <strong>${totalGoldWeight.toFixed(2)} 兩</strong></span>
-          <span style="font-size: 13px; color: #92400e;">總支出: $${totalPayout.toLocaleString()} HKD</span>
+        <div style="display: flex; justify-between; background: #fffbeb; padding: 6px 10px; border-radius: 6px; margin-bottom: 6px; font-weight: bold; font-size: 11px;">
+          <span style="width:33%;">今日總筆數: ${currentEODRecords.length} 筆</span>
+          <span style="width:33%;">折合足金總重: ${totalGoldWeight.toFixed(2)} 兩</span>
+          <span style="width:34%; text-align:right; color: #92400e; font-size:12px;">總支出: $${totalPayout.toLocaleString()} HKD</span>
         </div>
 
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10px;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
           <thead>
-            <tr style="border-bottom: 2px solid #ccc; background: #f3f4f6; text-align: left;">
+            <tr style="border-bottom: 2px solid #ccc; background: #f3f4f6; font-size: 10px; text-align: left;">
               <th style="padding: 3px;">時間</th>
               <th style="padding: 3px;">成色類別</th>
-              <th style="padding: 3px;">重量 (毫兩 / 兩錢分厘)</th>
+              <th style="padding: 3px;">重量</th>
               <th style="padding: 3px; text-align: right;">實付金額</th>
             </tr>
           </thead>
@@ -551,32 +548,31 @@
           </tbody>
         </table>
 
-        <div style="display: flex; justify-content: space-between; margin-top: 15px; padding-top: 5px; border-top: 1px dashed #ccc; font-weight: bold;">
+        <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 4px; border-top: 1px dashed #ccc; font-size: 10px; font-weight: bold;">
           <div>當值經手簽署: ____________________</div>
           <div>老闆 / 主管覆核: ____________________</div>
         </div>
       </div>
     `;
 
-    // 打包成 A4 雙聯 (上半聯：門市留存聯 | 下半聯：老闆對賬聯)
     printArea.innerHTML = `
-      <div style="width: 100%; max-width: 190mm; margin: auto; font-family: sans-serif;">
-        <!-- 上半聯 -->
+      <div style="width: 100%; font-family: sans-serif;">
         ${singleReceiptHtml("門市留存聯 (A5)")}
         
-        <!-- ✂️ 中間剪裁分割線 -->
-        <div style="text-align: center; margin: 12px 0; border-top: 2px dashed #9ca3af; position: relative;">
-          <span style="position: relative; top: -10px; background: white; padding: 0 10px; font-size: 10px; color: #6b7280; font-weight: bold;">
+        <div style="text-align: center; margin: 8px 0; border-top: 2px dashed #9ca3af; position: relative;">
+          <span style="position: relative; top: -9px; background: white; padding: 0 8px; font-size: 9px; color: #6b7280; font-weight: bold;">
             ✂️ 沿此虛線剪裁 (上半聯存店 / 下半聯交老闆)
           </span>
         </div>
 
-        <!-- 下半聯 -->
         ${singleReceiptHtml("老闆對賬聯 (A5)")}
       </div>
     `;
 
-    window.print();
+    // 延遲 100ms 讓 iOS DOM 完全繪製後再調用原生日結選單
+    setTimeout(() => {
+      window.print();
+    }, 100);
   }
 
   async function submitToSheet() {
