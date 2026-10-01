@@ -19,17 +19,33 @@
     .checkbox-container:hover { background: #fffbeb; border-color: #d97706; }
     .checkbox-container input { width: auto; margin-right: 8px; transform: scale(1.3); cursor: pointer; }
     
-    /* 雙頁籤樣式 */
     .tab-btn { padding: 10px 15px; font-weight: 800; font-size: 0.95rem; border-radius: 8px; transition: 0.2s; }
     .tab-active { background: #92400e; color: white; }
     .tab-inactive { background: #e5e7eb; color: #4b5563; }
-    
-    /* 看板小卡片樣式 */
     .dash-card { background: #fdfbf7; border: 1px solid #f59e0b; padding: 15px; border-radius: 16px; text-align: center; }
 
     /* Modal 彈窗樣式 */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 15px; }
-    .modal-card { background: white; width: 100%; max-width: 400px; border-radius: 20px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+    .modal-card { background: white; width: 100%; max-width: 420px; border-radius: 20px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-height: 90vh; overflow-y: auto; }
+
+    /* 🖨️ A4 雙聯頁面列印專屬 CSS 樣式 (iOS AirPrint 強力優化) */
+    @media print {
+      body * { visibility: hidden !important; }
+      #printArea, #printArea * { visibility: visible !important; }
+      #printArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 8mm;
+      }
+    }
   </style>
 </head>
 <body>
@@ -95,10 +111,14 @@
     <label>實付客戶金額 (HKD)</label>
     <input type="number" id="actualPayout" placeholder="$ 0" class="border-amber-400 text-amber-900 text-2xl font-black" inputmode="numeric">
 
-    <!-- 按鈕改為先觸發預覽彈窗 -->
     <button id="previewBtn" onclick="openPreviewModal()" class="btn-submit">預覽並核對數據</button>
 
-    <!-- 👑 老闆專屬管理後台 👑 -->
+    <!-- 門市每日日結入口按鈕 -->
+    <button onclick="openEODAuthModal()" class="w-full py-3 mt-4 bg-amber-100 text-amber-900 font-black rounded-xl border border-amber-300 hover:bg-amber-200">
+      📑 門市當日結算對賬 (End of Day)
+    </button>
+
+    <!-- 👑 老闆專屬管理後台 (密碼 888) 👑 -->
     <div id="adminArea" class="admin-only mt-10 pt-6 border-t-4 border-double border-gray-200">
       <div class="flex justify-between items-center mb-6">
         <div class="flex gap-2">
@@ -148,7 +168,7 @@
     </div>
   </div>
 
-  <!-- 🔍 二次核對預覽彈窗 (Preview Modal) -->
+  <!-- 🔍 1. 二次核對預覽彈窗 (Preview Modal) -->
   <div id="previewModal" class="modal-overlay hidden">
     <div class="modal-card">
       <h3 class="text-xl font-black text-amber-900 border-b pb-2 mb-4 text-center">🔎 請仔細核對單據數據</h3>
@@ -190,15 +210,93 @@
     </div>
   </div>
 
+  <!-- 🔒 2. 門市日結驗證彈窗 (EOD Auth Modal) -->
+  <div id="eodAuthModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3 class="text-lg font-black text-amber-900 mb-2 text-center">🔐 門市日結身份驗證</h3>
+      <p class="text-xs text-gray-500 mb-4 text-center">請選擇分店並輸入專屬對賬密碼</p>
+      
+      <div class="space-y-3">
+        <div>
+          <label class="mt-0 text-xs font-bold text-gray-600">選擇分店</label>
+          <select id="eodShopSel" class="!padding-2">
+            <option value="KF">KF 分店</option>
+            <option value="KS">KS 分店</option>
+            <option value="KL">KL 分店</option>
+          </select>
+        </div>
+        <div>
+          <label class="mt-0 text-xs font-bold text-gray-600">門市對賬密碼</label>
+          <input type="password" id="eodPassInput" placeholder="請輸入門市密碼" class="!padding-2">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mt-6">
+        <button onclick="closeEODAuthModal()" class="w-full py-2.5 bg-gray-200 text-gray-700 font-black rounded-xl">取消</button>
+        <button onclick="verifyAndOpenEOD()" class="w-full py-2.5 bg-amber-800 text-white font-black rounded-xl">進入對賬</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 📋 3. 門市當日結算對賬彈窗 (EOD Summary Modal) -->
+  <div id="eodSummaryModal" class="modal-overlay hidden">
+    <div class="modal-card !max-w-md">
+      <div class="flex justify-between items-center border-b pb-2 mb-3">
+        <h3 class="text-lg font-black text-amber-900"><span id="eodShopTitle">KF</span> 店今日日結結算</h3>
+        <button onclick="closeEODSummaryModal()" class="text-gray-400 font-bold hover:text-gray-700">✕</button>
+      </div>
+
+      <div id="eodLoading" class="text-center py-8 text-gray-400 font-bold">正在讀取雲端當日數據...</div>
+
+      <div id="eodContent" class="hidden space-y-4">
+        <!-- 今日總計數據卡 -->
+        <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 grid grid-cols-3 gap-2 text-center">
+          <div>
+            <div class="text-[10px] text-gray-500 font-bold">今日交易筆數</div>
+            <div id="eodCount" class="text-base font-black text-gray-800">0 筆</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-gray-500 font-bold">今日總支出 (HKD)</div>
+            <div id="eodTotalPayout" class="text-base font-black text-amber-900">$0</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-gray-500 font-bold">折合足金總重</div>
+            <div id="eodTotalGold" class="text-base font-black text-amber-800">0.00 兩</div>
+          </div>
+        </div>
+
+        <!-- 當日交易明細清單 -->
+        <div class="text-xs font-bold text-gray-600 mb-1">今日交易明細紀錄：</div>
+        <div id="eodList" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+
+        <!-- 列印按鈕 -->
+        <button onclick="printA4DualReceipt()" class="w-full py-3 bg-amber-800 text-white font-black rounded-xl shadow-md hover:bg-amber-900 flex items-center justify-center gap-2">
+          🖨️ 印出 A4 雙聯日結憑證 (AirPrint)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🖨️ 隱藏的 A4 雙聯單列印區域 (僅在列印時被觸發呈現) -->
+  <div id="printArea" class="hidden"></div>
+
 <script>
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx5nyjyVUsRz_ZGIjwWp35BxGrNdaWIHhkyA0LPbC2fDcAsbfq217qiSE0AaEp4gDkc/exec';
   const API_KEY = 'b59eca630c98a8dbc001ff5d576db229'; 
   const BOSS_KEY = '888';
 
+  // 🔑 三家分店專屬對賬密碼設定 (可依需求自由更換)
+  const STORE_PASSWORDS = {
+    'KF': '111',
+    'KS': '222',
+    'KL': '333'
+  };
+
   let livePrice = 0;
   let cachedRecords = [];
+  let currentEODRecords = [];
+  let currentEODShop = '';
 
-  // 毫兩轉司馬兩（兩錢分厘）轉換函數
   function formatToTraditionalTael(milliWeight) {
     const w = Math.round(Number(milliWeight));
     if (!w || w <= 0) return "0 厘";
@@ -267,7 +365,7 @@
     }
   }
 
-  // 開啟預覽彈窗並填充數據
+  // 1. 預覽 Modal 控制
   function openPreviewModal() {
     const selectedShop = document.querySelector('input[name="shopRadio"]:checked');
     const daily = parseFloat(document.getElementById('dailyPrice').value);
@@ -298,7 +396,6 @@
     if (isPlat) tagText.push("⚪ 鉑金");
     if (tagText.length === 0) tagText.push("無特殊標記");
 
-    // 填入 Modal 預覽卡片
     document.getElementById('prevShop').innerText = selectedShop.value + " 店";
     document.getElementById('prevDailyPrice').innerText = "$" + daily.toLocaleString() + " HKD/兩";
     document.getElementById('prevWeightMilli').innerText = w + " 毫兩";
@@ -314,7 +411,174 @@
     document.getElementById('previewModal').classList.add('hidden');
   }
 
-  // 正式上傳至 Google Sheet
+  // 2. 門市對賬驗證控制
+  function openEODAuthModal() {
+    document.getElementById('eodPassInput').value = "";
+    document.getElementById('eodAuthModal').classList.remove('hidden');
+  }
+
+  function closeEODAuthModal() {
+    document.getElementById('eodAuthModal').classList.add('hidden');
+  }
+
+  function verifyAndOpenEOD() {
+    const shop = document.getElementById('eodShopSel').value;
+    const pass = document.getElementById('eodPassInput').value.trim();
+
+    if (STORE_PASSWORDS[shop] && pass === STORE_PASSWORDS[shop]) {
+      closeEODAuthModal();
+      openEODSummaryModal(shop);
+    } else {
+      alert("❌ 密碼錯誤！請輸入正確的門市對賬密碼。");
+    }
+  }
+
+  // 3. 讀取並展示門市今日對賬清單
+  async function openEODSummaryModal(shop) {
+    currentEODShop = shop;
+    document.getElementById('eodShopTitle').innerText = shop;
+    document.getElementById('eodSummaryModal').classList.remove('hidden');
+    document.getElementById('eodLoading').classList.remove('hidden');
+    document.getElementById('eodContent').classList.add('hidden');
+
+    try {
+      const res = await fetch(SCRIPT_URL);
+      const allRecords = await res.json();
+      
+      const now = new Date();
+      const todayStr = now.toDateString();
+
+      // 🔍 嚴格過濾：僅抓取「該分店」且「今天」的交易
+      currentEODRecords = allRecords.filter(r => {
+        if (!r.time) return false;
+        const rDate = new Date(r.time);
+        return r.shop === shop && rDate.toDateString() === todayStr;
+      });
+
+      let totalPayout = 0;
+      let totalGoldWeight = 0;
+
+      const listDiv = document.getElementById('eodList');
+      if (currentEODRecords.length === 0) {
+        listDiv.innerHTML = "<p class='text-center text-gray-400 py-3'>今日尚無任何交易紀錄</p>";
+      } else {
+        listDiv.innerHTML = currentEODRecords.map(r => {
+          totalPayout += Number(r.payout || 0);
+          totalGoldWeight += Number(r.fineGoldWeight || 0);
+          
+          return `
+            <div class="p-2 bg-gray-50 rounded-lg border text-xs flex justify-between items-center">
+              <div>
+                <span class="font-bold text-gray-800">${new Date(r.time).toLocaleTimeString('zh-HK', {hour:'2-digit', minute:'2-digit', hour12:false})}</span>
+                <span class="text-gray-500 ml-1">| ${r.purityLabel}</span>
+                <div class="text-[10px] text-gray-400">${r.weight} 毫兩 (${formatToTraditionalTael(r.weight)})</div>
+              </div>
+              <div class="font-black text-amber-900 text-sm">$${Number(r.payout).toLocaleString()}</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('eodCount').innerText = currentEODRecords.length + " 筆";
+      document.getElementById('eodTotalPayout').innerText = "$" + totalPayout.toLocaleString();
+      document.getElementById('eodTotalGold').innerText = totalGoldWeight.toFixed(2) + " 兩";
+
+      document.getElementById('eodLoading').classList.add('hidden');
+      document.getElementById('eodContent').classList.remove('hidden');
+
+    } catch(e) {
+      alert("載入日結數據失敗，請檢查網路連線");
+      closeEODSummaryModal();
+    }
+  }
+
+  function closeEODSummaryModal() {
+    document.getElementById('eodSummaryModal').classList.add('hidden');
+  }
+
+  // 🖨️ 生成並觸發 AirPrint 列印 A4 雙聯日結單
+  function printA4DualReceipt() {
+    const printArea = document.getElementById('printArea');
+    const nowStr = new Date().toLocaleString('zh-HK', { hour12: false });
+    
+    let totalPayout = 0;
+    let totalGoldWeight = 0;
+
+    const rowsHtml = currentEODRecords.map(r => {
+      totalPayout += Number(r.payout || 0);
+      totalGoldWeight += Number(r.fineGoldWeight || 0);
+      return `
+        <tr style="border-bottom: 1px solid #e5e7eb; text-align: left;">
+          <td style="padding: 4px;">${new Date(r.time).toLocaleTimeString('zh-HK', {hour:'2-digit', minute:'2-digit', hour12:false})}</td>
+          <td style="padding: 4px;">${r.purityLabel}</td>
+          <td style="padding: 4px;">${r.weight} 毫兩<br><small style="color:#666;">${formatToTraditionalTael(r.weight)}</small></td>
+          <td style="padding: 4px; text-align: right; font-weight: bold;">$${Number(r.payout).toLocaleString()}</td>
+        </tr>
+      `;
+    }).join('');
+
+    // 單張 A5 內容模板
+    const singleReceiptHtml = (titleTag) => `
+      <div style="padding: 10px; border: 2px solid #92400e; border-radius: 10px; background: #fff; font-size: 11px; line-height: 1.4;">
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #92400e; padding-bottom: 5px; margin-bottom: 8px;">
+          <div>
+            <h2 style="font-size: 15px; font-weight: 900; color: #78350f; margin: 0;">景輝金鋪 - 門市每日收購結算單</h2>
+            <span style="font-weight: bold; color: #4b5563;">[ ${titleTag} ]</span>
+          </div>
+          <div style="text-align: right; font-size: 10px; color: #4b5563;">
+            <div><strong>分店:</strong> ${currentEODShop} 店</div>
+            <div><strong>列印時間:</strong> ${nowStr}</div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; background: #fffbeb; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; font-weight: bold;">
+          <span>今日總筆數: <strong>${currentEODRecords.length} 筆</strong></span>
+          <span>折合足金總重: <strong>${totalGoldWeight.toFixed(2)} 兩</strong></span>
+          <span style="font-size: 13px; color: #92400e;">總支出: $${totalPayout.toLocaleString()} HKD</span>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10px;">
+          <thead>
+            <tr style="border-bottom: 2px solid #ccc; background: #f3f4f6; text-align: left;">
+              <th style="padding: 3px;">時間</th>
+              <th style="padding: 3px;">成色類別</th>
+              <th style="padding: 3px;">重量 (毫兩 / 兩錢分厘)</th>
+              <th style="padding: 3px; text-align: right;">實付金額</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || '<tr><td colspan="4" style="text-align:center; padding:10px;">今日無交易數據</td></tr>'}
+          </tbody>
+        </table>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 15px; padding-top: 5px; border-top: 1px dashed #ccc; font-weight: bold;">
+          <div>當值經手簽署: ____________________</div>
+          <div>老闆 / 主管覆核: ____________________</div>
+        </div>
+      </div>
+    `;
+
+    // 打包成 A4 雙聯 (上半聯：門市留存聯 | 下半聯：老闆對賬聯)
+    printArea.innerHTML = `
+      <div style="width: 100%; max-width: 190mm; margin: auto; font-family: sans-serif;">
+        <!-- 上半聯 -->
+        ${singleReceiptHtml("門市留存聯 (A5)")}
+        
+        <!-- ✂️ 中間剪裁分割線 -->
+        <div style="text-align: center; margin: 12px 0; border-top: 2px dashed #9ca3af; position: relative;">
+          <span style="position: relative; top: -10px; background: white; padding: 0 10px; font-size: 10px; color: #6b7280; font-weight: bold;">
+            ✂️ 沿此虛線剪裁 (上半聯存店 / 下半聯交老闆)
+          </span>
+        </div>
+
+        <!-- 下半聯 -->
+        ${singleReceiptHtml("老闆對賬聯 (A5)")}
+      </div>
+    `;
+
+    window.print();
+  }
+
   async function submitToSheet() {
     const selectedShop = document.querySelector('input[name="shopRadio"]:checked');
     const daily = parseFloat(document.getElementById('dailyPrice').value);
@@ -401,7 +665,7 @@
         fetchRecords();
       }
     } catch (e) {
-      alert("連線失敗，請檢查網絡");
+      alert("連線失敗，請檢查網路");
     } finally {
       confirmBtn.innerText = "✅ 確認上傳";
       confirmBtn.disabled = false;
