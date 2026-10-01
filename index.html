@@ -28,7 +28,7 @@
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 15px; }
     .modal-card { background: white; width: 100%; max-width: 420px; border-radius: 20px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-height: 90vh; overflow-y: auto; }
 
-    /* 🖨️ iOS Safari & AirPrint 專屬列印修正 CSS */
+    /* 🖨️ 專門針對「預裁切 A4 雙聯紙」的精確 50%/50% 對稱 CSS */
     @media print {
       body * { display: none !important; }
       #printArea, #printArea * { display: block !important; }
@@ -37,8 +37,10 @@
         left: 0 !important;
         top: 0 !important;
         width: 100% !important;
+        height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
+        box-sizing: border-box !important;
       }
       #printArea table { display: table !important; }
       #printArea tr { display: table-row !important; }
@@ -47,9 +49,20 @@
       #printArea span { display: inline !important; }
       #printArea strong { display: inline !important; }
 
+      .half-a4-block {
+        height: 138mm !important; /* 嚴格鎖定 A4 高度的一半，精確對齊實體預裁切線 */
+        max-height: 138mm !important;
+        box-sizing: border-box !important;
+        padding: 10px 12px !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+      }
+
       @page {
         size: A4 portrait;
-        margin: 6mm;
+        margin: 5mm 6mm; /* 極簡邊距，去除 Safari/iOS 預設頭尾頁碼 */
       }
     }
   </style>
@@ -280,7 +293,7 @@
     </div>
   </div>
 
-  <!-- 🖨️ 專屬 A4 雙聯列印容器 -->
+  <!-- 🖨️ 精確對齊實體預切紙的 A4 雙聯容器 -->
   <div id="printArea" style="display:none;"></div>
 
 <script>
@@ -494,7 +507,7 @@
     document.getElementById('eodSummaryModal').classList.add('hidden');
   }
 
-  // 🖨️ 專門優化 iOS Safari 與 AirPrint 的列印調用邏輯
+  // 🖨️ 100% 精確 50% 對稱排版（對齊實體切割紙）
   function printA4DualReceipt() {
     const printArea = document.getElementById('printArea');
     const nowStr = new Date().toLocaleString('zh-HK', { hour12: false });
@@ -507,69 +520,68 @@
       totalGoldWeight += Number(r.fineGoldWeight || 0);
       return `
         <tr style="border-bottom: 1px solid #e5e7eb;">
-          <td style="padding: 4px; font-size: 10px;">${new Date(r.time).toLocaleTimeString('zh-HK', {hour:'2-digit', minute:'2-digit', hour12:false})}</td>
-          <td style="padding: 4px; font-size: 10px;">${r.purityLabel}</td>
-          <td style="padding: 4px; font-size: 10px;">${r.weight} 毫兩 (${formatToTraditionalTael(r.weight)})</td>
-          <td style="padding: 4px; font-size: 10px; text-align: right; font-weight: bold;">$${Number(r.payout).toLocaleString()}</td>
+          <td style="padding: 3px; font-size: 9.5px;">${new Date(r.time).toLocaleTimeString('zh-HK', {hour:'2-digit', minute:'2-digit', hour12:false})}</td>
+          <td style="padding: 3px; font-size: 9.5px;">${r.purityLabel}</td>
+          <td style="padding: 3px; font-size: 9.5px;">${r.weight} 毫兩 (${formatToTraditionalTael(r.weight)})</td>
+          <td style="padding: 3px; font-size: 9.5px; text-align: right; font-weight: bold;">$${Number(r.payout).toLocaleString()}</td>
         </tr>
       `;
     }).join('');
 
-    const singleReceiptHtml = (titleTag) => `
-      <div style="padding: 12px; border: 2px solid #92400e; border-radius: 10px; background: #fff; font-size: 11px; margin-bottom: 5px;">
-        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #92400e; padding-bottom: 4px; margin-bottom: 6px;">
+    const singleReceiptBlock = (titleTag) => `
+      <div class="half-a4-block">
+        <div style="border: 1.5px solid #92400e; border-radius: 8px; padding: 10px; background: #fff; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
+          
           <div>
-            <span style="font-size: 14px; font-weight: 900; color: #78350f;">景輝金鋪 - 門市每日收購結算單</span>
-            <span style="font-weight: bold; color: #4b5563; font-size: 11px; margin-left: 6px;">[ ${titleTag} ]</span>
+            <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #92400e; padding-bottom: 4px; margin-bottom: 6px;">
+              <div>
+                <span style="font-size: 14px; font-weight: 900; color: #78350f;">景輝金鋪 - 門市每日收購結算單</span>
+                <span style="font-weight: bold; color: #4b5563; font-size: 10px; margin-left: 4px;">[ ${titleTag} ]</span>
+              </div>
+              <div style="text-align: right; font-size: 9.5px; color: #4b5563;">
+                <span><strong>分店:</strong> ${currentEODShop} 店 | </span>
+                <span><strong>時間:</strong> ${nowStr}</span>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-between; background: #fffbeb; padding: 5px 8px; border-radius: 6px; margin-bottom: 6px; font-weight: bold; font-size: 10.5px;">
+              <span style="width:33%;">今日總筆數: ${currentEODRecords.length} 筆</span>
+              <span style="width:33%;">折合足金總重: ${totalGoldWeight.toFixed(2)} 兩</span>
+              <span style="width:34%; text-align:right; color: #92400e; font-size:11.5px;">總支出: $${totalPayout.toLocaleString()} HKD</span>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="border-bottom: 2px solid #ccc; background: #f3f4f6; font-size: 9.5px; text-align: left;">
+                  <th style="padding: 2px 3px;">時間</th>
+                  <th style="padding: 2px 3px;">成色類別</th>
+                  <th style="padding: 2px 3px;">重量</th>
+                  <th style="padding: 2px 3px; text-align: right;">實付金額</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml || '<tr><td colspan="4" style="text-align:center; padding:8px;">今日無交易數據</td></tr>'}
+              </tbody>
+            </table>
           </div>
-          <div style="text-align: right; font-size: 10px; color: #4b5563;">
-            <span><strong>分店:</strong> ${currentEODShop} 店 | </span>
-            <span><strong>時間:</strong> ${nowStr}</span>
+
+          <div style="display: flex; justify-between; padding-top: 4px; border-top: 1px dashed #ccc; font-size: 9.5px; font-weight: bold;">
+            <div>當值經手簽署: ____________________</div>
+            <div>老闆 / 主管覆核: ____________________</div>
           </div>
-        </div>
 
-        <div style="display: flex; justify-between; background: #fffbeb; padding: 6px 10px; border-radius: 6px; margin-bottom: 6px; font-weight: bold; font-size: 11px;">
-          <span style="width:33%;">今日總筆數: ${currentEODRecords.length} 筆</span>
-          <span style="width:33%;">折合足金總重: ${totalGoldWeight.toFixed(2)} 兩</span>
-          <span style="width:34%; text-align:right; color: #92400e; font-size:12px;">總支出: $${totalPayout.toLocaleString()} HKD</span>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
-          <thead>
-            <tr style="border-bottom: 2px solid #ccc; background: #f3f4f6; font-size: 10px; text-align: left;">
-              <th style="padding: 3px;">時間</th>
-              <th style="padding: 3px;">成色類別</th>
-              <th style="padding: 3px;">重量</th>
-              <th style="padding: 3px; text-align: right;">實付金額</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml || '<tr><td colspan="4" style="text-align:center; padding:10px;">今日無交易數據</td></tr>'}
-          </tbody>
-        </table>
-
-        <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 4px; border-top: 1px dashed #ccc; font-size: 10px; font-weight: bold;">
-          <div>當值經手簽署: ____________________</div>
-          <div>老闆 / 主管覆核: ____________________</div>
         </div>
       </div>
     `;
 
+    // 兩塊完全對稱的 50% 區塊，直接對齊你們的實體切割紙
     printArea.innerHTML = `
-      <div style="width: 100%; font-family: sans-serif;">
-        ${singleReceiptHtml("門市留存聯 (A5)")}
-        
-        <div style="text-align: center; margin: 8px 0; border-top: 2px dashed #9ca3af; position: relative;">
-          <span style="position: relative; top: -9px; background: white; padding: 0 8px; font-size: 9px; color: #6b7280; font-weight: bold;">
-            ✂️ 沿此虛線剪裁 (上半聯存店 / 下半聯交老闆)
-          </span>
-        </div>
-
-        ${singleReceiptHtml("老闆對賬聯 (A5)")}
+      <div style="width: 100%; height: 100%; font-family: sans-serif;">
+        ${singleReceiptBlock("門市留存聯")}
+        ${singleReceiptBlock("老闆對賬聯")}
       </div>
     `;
 
-    // 延遲 100ms 讓 iOS DOM 完全繪製後再調用原生日結選單
     setTimeout(() => {
       window.print();
     }, 100);
