@@ -28,7 +28,7 @@
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 15px; }
     .modal-card { background: white; width: 100%; max-width: 420px; border-radius: 20px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-height: 90vh; overflow-y: auto; }
 
-    /* 🖨️ 專門針對「預裁切 A4 雙聯紙」的精確 90% 縮減版 CSS (確保單頁 100% 不溢出) */
+    /* 🖨️ 專門針對 AirPrint 預裁切雙聯紙的零頁邊矩列印 CSS */
     @media print {
       body * { display: none !important; }
       #printArea, #printArea * { display: block !important; }
@@ -39,7 +39,7 @@
         width: 100% !important;
         height: 100% !important;
         margin: 0 !important;
-        padding: 0 !important;
+        padding: 5mm 8mm !important;
         box-sizing: border-box !important;
       }
       #printArea table { display: table !important; }
@@ -50,19 +50,20 @@
       #printArea strong { display: inline !important; }
 
       .half-a4-block {
-        height: 126mm !important; /* 精確下修高度至 126mm，完美等同於 90% Scale，絕不跑頁 */
-        max-height: 126mm !important;
+        height: 118mm !important; /* 嚴格設定單聯 118mm 高度，上下加總 236mm，遠小於 A4 297mm，絕不產生第 2 頁 */
+        max-height: 118mm !important;
         box-sizing: border-box !important;
-        padding: 6px 8px !important;
+        padding: 6px 4px !important;
         overflow: hidden !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
+        margin-bottom: 8mm !important; /* 剛好補滿中間裁切線的安全距 */
       }
 
       @page {
         size: A4 portrait;
-        margin: 4mm 5mm; /* 收緊頁面邊距，杜絕第二頁 */
+        margin: 0 !important; /* 邊距設為 0，徹底殺掉底部的網址 https://... 與頁碼 */
       }
     }
   </style>
@@ -507,7 +508,7 @@
     document.getElementById('eodSummaryModal').classList.add('hidden');
   }
 
-  // 🖨️ 精確鎖定單頁 100% 比例（相當於 90% Scale 自動排版）
+  // 🖨️ 徹底清除頭尾網址、鎖定單頁 1 頁 A4 印刷
   function printA4DualReceipt() {
     const printArea = document.getElementById('printArea');
     const nowStr = new Date().toLocaleString('zh-HK', { hour12: false });
