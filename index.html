@@ -18,6 +18,18 @@
     .checkbox-container { display: flex; align-items: center; justify-content: center; background: #f9fafb; padding: 12px; border-radius: 12px; border: 2px solid #e5e7eb; cursor: pointer; transition: 0.2s; }
     .checkbox-container:hover { background: #fffbeb; border-color: #d97706; }
     .checkbox-container input { width: auto; margin-right: 8px; transform: scale(1.3); cursor: pointer; }
+    
+    /* 雙頁籤樣式 */
+    .tab-btn { padding: 10px 15px; font-weight: 800; font-size: 0.95rem; border-radius: 8px; transition: 0.2s; }
+    .tab-active { background: #92400e; color: white; }
+    .tab-inactive { background: #e5e7eb; color: #4b5563; }
+    
+    /* 看板小卡片樣式 */
+    .dash-card { background: #fdfbf7; border: 1px solid #f59e0b; padding: 15px; border-radius: 16px; text-align: center; }
+
+    /* Modal 彈窗樣式 */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 15px; }
+    .modal-card { background: white; width: 100%; max-width: 400px; border-radius: 20px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
   </style>
 </head>
 <body>
@@ -28,6 +40,7 @@
       <input type="password" id="bossPass" placeholder="管理" class="w-10 text-[8px] p-1 border rounded opacity-20" oninput="toggleAdminView()">
     </div>
 
+    <!-- 📍 分店選擇 -->
     <label class="mt-0 text-red-600">📍 所屬分店 (必填) *</label>
     <div class="grid grid-cols-3 gap-3">
       <label class="checkbox-container m-0">
@@ -82,14 +95,98 @@
     <label>實付客戶金額 (HKD)</label>
     <input type="number" id="actualPayout" placeholder="$ 0" class="border-amber-400 text-amber-900 text-2xl font-black" inputmode="numeric">
 
-    <button id="submitBtn" onclick="submitToSheet()" class="btn-submit">確認交易並上傳</button>
+    <!-- 按鈕改為先觸發預覽彈窗 -->
+    <button id="previewBtn" onclick="openPreviewModal()" class="btn-submit">預覽並核對數據</button>
 
+    <!-- 👑 老闆專屬管理後台 👑 -->
     <div id="adminArea" class="admin-only mt-10 pt-6 border-t-4 border-double border-gray-200">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="font-black text-lg text-gray-800">📋 全線數據監控</h2>
-        <button onclick="fetchRecords()" class="text-blue-500 text-xs font-bold">刷新</button>
+      <div class="flex justify-between items-center mb-6">
+        <div class="flex gap-2">
+          <button id="tabDashBtn" onclick="switchTab('dash')" class="tab-btn tab-active">📊 即時看板</button>
+          <button id="tabListBtn" onclick="switchTab('list')" class="tab-btn tab-inactive">📋 交易明細</button>
+        </div>
+        <button onclick="fetchRecords()" class="text-amber-700 font-extrabold text-sm border-2 border-amber-600 px-3 py-1 rounded-lg">🔄 刷新數據</button>
       </div>
-      <div id="recordList" class="space-y-3"></div>
+
+      <div id="dashboardView" class="space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="dash-card col-span-2 !bg-amber-50">
+            <div class="text-xs font-bold text-amber-800">本月累計預估總利潤</div>
+            <div id="dashMonthProfit" class="text-2xl font-black text-green-600">$0</div>
+          </div>
+          <div class="dash-card">
+            <div class="text-xs font-bold text-gray-500">今日收購總金額</div>
+            <div id="dashTodayPayout" class="text-lg font-black text-gray-800">$0</div>
+          </div>
+          <div class="dash-card">
+            <div class="text-xs font-bold text-gray-500">本月收購總金額</div>
+            <div id="dashMonthPayout" class="text-lg font-black text-gray-800">$0</div>
+          </div>
+          <div class="dash-card">
+            <div class="text-xs font-bold text-gray-500">本月足金總重 (兩)</div>
+            <div id="dashMonthGoldWeight" class="text-lg font-black text-amber-700">0.00 兩</div>
+          </div>
+          <div class="dash-card">
+            <div class="text-xs font-bold text-gray-500">本月鉑金總件數</div>
+            <div id="dashMonthPlatCount" class="text-lg font-black text-blue-600">0 件</div>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 p-4 border rounded-xl">
+          <div class="text-xs font-black text-gray-500 mb-2">📍 本月分店進貨支出排行榜 (HKD)</div>
+          <div class="space-y-1 text-sm font-bold text-gray-700">
+            <div class="flex justify-between"><span>KF 店:</span><span id="rankKF">$0</span></div>
+            <div class="flex justify-between"><span>KS 店:</span><span id="rankKS">$0</span></div>
+            <div class="flex justify-between"><span>KL 店:</span><span id="rankKL">$0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="listView" class="hidden space-y-3">
+        <div id="recordList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔍 二次核對預覽彈窗 (Preview Modal) -->
+  <div id="previewModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3 class="text-xl font-black text-amber-900 border-b pb-2 mb-4 text-center">🔎 請仔細核對單據數據</h3>
+      
+      <div class="space-y-3 text-sm font-bold text-gray-700">
+        <div class="flex justify-between border-b pb-1">
+          <span class="text-gray-500">所屬分店:</span>
+          <span id="prevShop" class="text-amber-800 font-black text-base">-</span>
+        </div>
+        <div class="flex justify-between border-b pb-1">
+          <span class="text-gray-500">當日金價:</span>
+          <span id="prevDailyPrice">-</span>
+        </div>
+        <div class="flex justify-between border-b pb-1 items-center">
+          <span class="text-gray-500">收購重量:</span>
+          <div class="text-right">
+            <div id="prevWeightMilli" class="font-black text-base text-gray-900">-</div>
+            <div id="prevWeightTrad" class="text-xs text-amber-700 font-black bg-amber-50 px-2 py-0.5 rounded border border-amber-200 mt-0.5">-</div>
+          </div>
+        </div>
+        <div class="flex justify-between border-b pb-1">
+          <span class="text-gray-500">成色類別:</span>
+          <span id="prevPurity">-</span>
+        </div>
+        <div class="flex justify-between border-b pb-1">
+          <span class="text-gray-500">特例標記:</span>
+          <span id="prevTags">-</span>
+        </div>
+        <div class="flex justify-between pt-2 items-center">
+          <span class="text-gray-800 font-extrabold text-base">實付金額:</span>
+          <span id="prevPayout" class="text-2xl font-black text-amber-900">$0</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mt-6">
+        <button onclick="closePreviewModal()" class="w-full py-3 bg-gray-200 text-gray-700 font-black rounded-xl hover:bg-gray-300">❌ 返回修改</button>
+        <button id="confirmSubmitBtn" onclick="submitToSheet()" class="w-full py-3 bg-amber-800 text-white font-black rounded-xl shadow-lg hover:bg-amber-900">✅ 確認上傳</button>
+      </div>
     </div>
   </div>
 
@@ -99,6 +196,26 @@
   const BOSS_KEY = '888';
 
   let livePrice = 0;
+  let cachedRecords = [];
+
+  // 毫兩轉司馬兩（兩錢分厘）轉換函數
+  function formatToTraditionalTael(milliWeight) {
+    const w = Math.round(Number(milliWeight));
+    if (!w || w <= 0) return "0 厘";
+
+    const tael = Math.floor(w / 1000);
+    const mace = Math.floor((w % 1000) / 100);
+    const candareen = Math.floor((w % 100) / 10);
+    const cash = w % 10;
+
+    let parts = [];
+    if (tael > 0) parts.push(`${tael} 兩`);
+    if (mace > 0 || tael > 0) parts.push(`${mace} 錢`);
+    if (candareen > 0 || mace > 0 || tael > 0) parts.push(`${candareen} 分`);
+    parts.push(`${cash} 厘`);
+
+    return parts.join(" ");
+  }
 
   async function updateLivePrice() {
     try {
@@ -131,20 +248,80 @@
     }
   }
 
-  async function submitToSheet() {
-    // 🔍 只抓取分店 Radio Box
-    const selectedShop = document.querySelector('input[name="shopRadio"]:checked');
+  function switchTab(tab) {
+    const dashBtn = document.getElementById('tabDashBtn');
+    const listBtn = document.getElementById('tabListBtn');
+    const dashView = document.getElementById('dashboardView');
+    const listView = document.getElementById('listView');
+    
+    if (tab === 'dash') {
+      dashBtn.className = "tab-btn tab-active";
+      listBtn.className = "tab-btn tab-inactive";
+      dashView.classList.remove('hidden');
+      listView.classList.add('hidden');
+    } else {
+      dashBtn.className = "tab-btn tab-inactive";
+      listBtn.className = "tab-btn tab-active";
+      dashView.classList.add('hidden');
+      listView.classList.remove('hidden');
+    }
+  }
 
+  // 開啟預覽彈窗並填充數據
+  function openPreviewModal() {
+    const selectedShop = document.querySelector('input[name="shopRadio"]:checked');
     const daily = parseFloat(document.getElementById('dailyPrice').value);
     const w = parseFloat(document.getElementById('weight').value);
     const payout = parseFloat(document.getElementById('actualPayout').value);
-    
     const isPlat = document.getElementById('platinumCheck').checked;
     const hasDiam = document.getElementById('diamondCheck').checked;
 
-    // 🚨 【核心防漏驗證】只檢查有沒有選分店，以及其他必填數據
     if (!selectedShop) return alert("❌ 提交失敗：請先勾選您所在的分店 (KF / KS / KL)！");
-    if (!daily || !w || !payout) return alert("請完整填寫金價、重量及實付金額再提交");
+    if (!daily || !w || !payout) return alert("請完整填寫金價、重量及實付金額再預覽");
+
+    let purityText = "";
+    if (isPlat) {
+      purityText = "⚪ 鉑金類別";
+    } else {
+      const puritySel = document.getElementById('puritySel');
+      if (puritySel.value === 'custom') {
+        const customNum = parseFloat(document.getElementById('customPurityInput').value);
+        if (!customNum || customNum <= 0 || customNum > 100) return alert("請輸入有效的自訂純度 (0-100)");
+        purityText = `自訂純度 (${customNum}%)`;
+      } else {
+        purityText = puritySel.options[puritySel.selectedIndex].text;
+      }
+    }
+
+    let tagText = [];
+    if (hasDiam) tagText.push("💎 含鑽石");
+    if (isPlat) tagText.push("⚪ 鉑金");
+    if (tagText.length === 0) tagText.push("無特殊標記");
+
+    // 填入 Modal 預覽卡片
+    document.getElementById('prevShop').innerText = selectedShop.value + " 店";
+    document.getElementById('prevDailyPrice').innerText = "$" + daily.toLocaleString() + " HKD/兩";
+    document.getElementById('prevWeightMilli').innerText = w + " 毫兩";
+    document.getElementById('prevWeightTrad').innerText = "即：" + formatToTraditionalTael(w);
+    document.getElementById('prevPurity').innerText = purityText;
+    document.getElementById('prevTags').innerText = tagText.join(" | ");
+    document.getElementById('prevPayout').innerText = "$" + payout.toLocaleString() + " HKD";
+
+    document.getElementById('previewModal').classList.remove('hidden');
+  }
+
+  function closePreviewModal() {
+    document.getElementById('previewModal').classList.add('hidden');
+  }
+
+  // 正式上傳至 Google Sheet
+  async function submitToSheet() {
+    const selectedShop = document.querySelector('input[name="shopRadio"]:checked');
+    const daily = parseFloat(document.getElementById('dailyPrice').value);
+    const w = parseFloat(document.getElementById('weight').value);
+    const payout = parseFloat(document.getElementById('actualPayout').value);
+    const isPlat = document.getElementById('platinumCheck').checked;
+    const hasDiam = document.getElementById('diamondCheck').checked;
 
     let purityVal = 1;
     let purityLabel = "黃金";
@@ -156,7 +333,6 @@
       const puritySel = document.getElementById('puritySel');
       if (puritySel.value === 'custom') {
         const customNum = parseFloat(document.getElementById('customPurityInput').value);
-        if (!customNum || customNum <= 0 || customNum > 100) return alert("請輸入有效的自訂純度 (0-100)");
         purityVal = customNum / 100;
         purityLabel = `自訂 (${customNum}%)`;
       } else {
@@ -165,8 +341,8 @@
       }
     }
 
-    const btn = document.getElementById('submitBtn');
-    btn.innerText = "上傳中..."; btn.disabled = true;
+    const confirmBtn = document.getElementById('confirmSubmitBtn');
+    confirmBtn.innerText = "上傳中..."; confirmBtn.disabled = true;
 
     await updateLivePrice();
 
@@ -190,7 +366,7 @@
 
     const record = {
       shop: selectedShop.value, 
-      staff: "門市", // 👈 自動填寫固定文字，維持原有 Google 試算表欄位結構
+      staff: "門市", 
       dailyPrice: daily,
       weight: w,
       purityLabel: isPlat ? "鉑金" : (hasDiam ? `黃金 (${purityLabel} + 鑽石)` : purityLabel),
@@ -207,7 +383,8 @@
       await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(record) });
       alert("✅ 數據已成功上傳雲端母表！");
       
-      // 成功後重置表單數據
+      closePreviewModal();
+
       document.getElementById('dailyPrice').value = "";
       document.getElementById('weight').value = "";
       document.getElementById('actualPayout').value = "";
@@ -216,26 +393,98 @@
       document.getElementById('diamondCheck').checked = false;
       document.getElementById('platinumCheck').checked = false;
       
-      // 成功提交後，把分店也清除勾選，逼下一單重新點選
       selectedShop.checked = false;
-      
       togglePlatinumMode();
       toggleCustomPurity();
+      
+      if (document.getElementById('adminArea').style.display === 'block') {
+        fetchRecords();
+      }
     } catch (e) {
       alert("連線失敗，請檢查網絡");
     } finally {
-      btn.innerText = "確認交易並上傳";
-      btn.disabled = false;
+      confirmBtn.innerText = "✅ 確認上傳";
+      confirmBtn.disabled = false;
     }
   }
 
   async function fetchRecords() {
     const list = document.getElementById('recordList');
-    list.innerHTML = "<p class='text-center text-gray-400'>讀取中...</p>";
+    list.innerHTML = "<p class='text-center text-gray-400 py-4'>正在從 Google 試算表同步最新數據...</p>";
+    
     try {
       const res = await fetch(SCRIPT_URL);
-      const data = await res.json();
-      list.innerHTML = data.slice().reverse().map(r => `
+      cachedRecords = await res.json();
+      
+      calculateDashboard(cachedRecords);
+      renderListView(cachedRecords);
+      
+    } catch (e) {
+      list.innerHTML = "<p class='text-center text-red-400 py-4'>數據加載失敗，請點選重新整理</p>";
+    }
+  }
+
+  function calculateDashboard(records) {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const todayStr = now.toDateString();
+    
+    let todayPayout = 0;
+    let monthPayout = 0;
+    let monthProfit = 0;
+    let monthGoldWeight = 0;
+    let monthPlatCount = 0;
+    
+    let shopMonthlySpend = { KF: 0, KS: 0, KL: 0 };
+
+    records.forEach(r => {
+      if (!r.time) return;
+      const rDate = new Date(r.time);
+      
+      if (rDate.toDateString() === todayStr) {
+        todayPayout += Number(r.payout || 0);
+      }
+      
+      if (rDate.getFullYear() === currentYear && rDate.getMonth() === currentMonth) {
+        monthPayout += Number(r.payout || 0);
+        monthProfit += Number(r.profit || 0);
+        monthGoldWeight += Number(r.fineGoldWeight || 0);
+        
+        if (r.isPlatinum === 'YES' || r.isPlatinum === true) {
+          monthPlatCount++;
+        }
+        
+        if (shopMonthlySpend.hasOwnProperty(r.shop)) {
+          shopMonthlySpend[r.shop] += Number(r.payout || 0);
+        }
+      }
+    });
+
+    document.getElementById('dashTodayPayout').innerText = "$" + todayPayout.toLocaleString();
+    document.getElementById('dashMonthPayout').innerText = "$" + monthPayout.toLocaleString();
+    document.getElementById('dashMonthProfit').innerText = "$" + monthProfit.toLocaleString();
+    document.getElementById('dashMonthGoldWeight').innerText = monthGoldWeight.toFixed(2) + " 兩";
+    document.getElementById('dashMonthPlatCount').innerText = monthPlatCount + " 件";
+    
+    document.getElementById('rankKF').innerText = "$" + shopMonthlySpend.KF.toLocaleString();
+    document.getElementById('rankKS').innerText = "$" + shopMonthlySpend.KS.toLocaleString();
+    document.getElementById('rankKL').innerText = "$" + shopMonthlySpend.KL.toLocaleString();
+  }
+
+  function renderListView(records) {
+    const list = document.getElementById('recordList');
+    
+    if(records.length === 0) {
+      list.innerHTML = "<p class='text-center text-gray-400 py-4'>暫無任何交易紀錄</p>";
+      return;
+    }
+
+    list.innerHTML = records.slice().reverse().map(r => {
+      const formattedMargin = Number(r.profitMargin || 0).toFixed(2);
+      const formattedFineWeight = Number(r.fineGoldWeight || 0).toFixed(2);
+      
+      return `
         <div class="record-box">
           <div class="flex justify-between text-[10px] font-black text-gray-400 mb-1">
             <span>${r.shop} - ${r.staff}</span>
@@ -243,23 +492,21 @@
           </div>
           <div class="text-xs text-gray-500 mb-1 flex justify-between">
             <span>類別: <span class="text-gray-700 font-bold">${r.purityLabel}</span></span>
-            <span>利潤率: <span class="text-purple-600 font-bold">${r.profitMargin || 0}%</span></span>
+            <span>利潤率: <span class="text-purple-600 font-bold">${formattedMargin}%</span></span>
           </div>
           <div class="text-[10px] text-gray-400 mb-1">
-            標記: ${r.hasDiamond === 'YES' ? '💎 含鑽石 ' : ''} ${r.isPlatinum === 'YES' ? '⚪ 鉑金' : ''} | 折合: ${(r.fineGoldWeight || 0).toFixed(3)} 兩
+            標記: ${r.hasDiamond === 'YES' || r.hasDiamond === true ? '💎 含鑽石 ' : ''} ${r.isPlatinum === 'YES' || r.isPlatinum === true ? '⚪ 鉑金' : ''} | 折合: ${formattedFineWeight} 兩
           </div>
           <div class="flex justify-between items-center mt-1">
             <span class="text-sm font-bold text-gray-700">重量: ${r.weight} 毫兩</span>
-            <span class="text-xl font-black text-amber-800">$${r.payout.toLocaleString()}</span>
+            <span class="text-xl font-black text-amber-800">$${Number(r.payout).toLocaleString()}</span>
           </div>
           <div class="text-right text-green-600 font-bold text-xs mt-2 border-t border-dashed pt-1">
-            預估利潤: $${r.profit.toLocaleString()}
+            預估利潤: $${Number(r.profit).toLocaleString()}
           </div>
         </div>
-      `).join('');
-    } catch (e) {
-      list.innerHTML = "<p class='text-center text-red-400'>數據加載失敗</p>";
-    }
+      `;
+    }).join('');
   }
 
   updateLivePrice();
