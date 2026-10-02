@@ -63,7 +63,7 @@
 
       @page {
         size: A4 portrait;
-        margin: 0 !important; /* 邊距設為 0，徹底殺掉底部的網址 https://... 與頁碼 */
+        margin: 0 !important; /* 邊距設為 0，徹底殺掉底部的網址與頁碼 */
       }
     }
   </style>
@@ -302,10 +302,11 @@
   const API_KEY = 'b59eca630c98a8dbc001ff5d576db229'; 
   const BOSS_KEY = '888';
 
+  // 🔑 三家分店專屬對賬密碼設定 (更新)
   const STORE_PASSWORDS = {
-    'KF': '111',
-    'KS': '222',
-    'KL': '333'
+    'KF': '1338',
+    'KS': '3988',
+    'KL': '6880'
   };
 
   let livePrice = 0;
@@ -508,7 +509,6 @@
     document.getElementById('eodSummaryModal').classList.add('hidden');
   }
 
-  // 🖨️ 徹底清除頭尾網址、鎖定單頁 1 頁 A4 印刷
   function printA4DualReceipt() {
     const printArea = document.getElementById('printArea');
     const nowStr = new Date().toLocaleString('zh-HK', { hour12: false });
