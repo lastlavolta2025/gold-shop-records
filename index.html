@@ -50,7 +50,7 @@
       #printArea strong { display: inline !important; }
 
       .half-a4-block {
-        height: 118mm !important; /* 嚴格設定單聯 118mm 高度，上下加總 236mm，遠小於 A4 297mm，絕不產生第 2 頁 */
+        height: 118mm !important;
         max-height: 118mm !important;
         box-sizing: border-box !important;
         padding: 6px 4px !important;
@@ -58,12 +58,12 @@
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
-        margin-bottom: 8mm !important; /* 剛好補滿中間裁切線的安全距 */
+        margin-bottom: 8mm !important;
       }
 
       @page {
         size: A4 portrait;
-        margin: 0 !important; /* 邊距設為 0，徹底殺掉底部的網址與頁碼 */
+        margin: 0 !important;
       }
     }
   </style>
@@ -140,7 +140,7 @@
 
     <!-- 👑 老闆專屬管理後台 (密碼 888) 👑 -->
     <div id="adminArea" class="admin-only mt-10 pt-6 border-t-4 border-double border-gray-200">
-      <div class="flex justify-between items-center mb-6">
+      <div class="flex justify-between items-center mb-4">
         <div class="flex gap-2">
           <button id="tabDashBtn" onclick="switchTab('dash')" class="tab-btn tab-active">📊 即時看板</button>
           <button id="tabListBtn" onclick="switchTab('list')" class="tab-btn tab-inactive">📋 交易明細</button>
@@ -149,31 +149,33 @@
       </div>
 
       <div id="dashboardView" class="space-y-4">
+        <!-- 📅 日/月 看板切換標籤 -->
+        <div class="flex justify-center bg-gray-200 p-1 rounded-xl text-xs font-bold gap-1">
+          <button id="subTabToday" onclick="switchTimeScope('today')" class="w-1/2 py-1.5 rounded-lg bg-amber-800 text-white font-extrabold shadow-sm transition">📅 今日營運</button>
+          <button id="subTabMonth" onclick="switchTimeScope('month')" class="w-1/2 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">🗓️ 本月累計</button>
+        </div>
+
         <div class="grid grid-cols-2 gap-3">
           <div class="dash-card col-span-2 !bg-amber-50">
-            <div class="text-xs font-bold text-amber-800">本月累計預估總利潤</div>
-            <div id="dashMonthProfit" class="text-2xl font-black text-green-600">$0</div>
+            <div id="dashProfitTitle" class="text-xs font-bold text-amber-800">今日累計預估總利潤</div>
+            <div id="dashProfit" class="text-2xl font-black text-green-600">$0</div>
+          </div>
+          <div class="dash-card col-span-2">
+            <div id="dashPayoutTitle" class="text-xs font-bold text-gray-500">今日收購總金額</div>
+            <div id="dashPayout" class="text-xl font-black text-amber-900">$0</div>
           </div>
           <div class="dash-card">
-            <div class="text-xs font-bold text-gray-500">今日收購總金額</div>
-            <div id="dashTodayPayout" class="text-lg font-black text-gray-800">$0</div>
+            <div id="dashWeightTitle" class="text-xs font-bold text-gray-500">今日足金總重 (兩)</div>
+            <div id="dashGoldWeight" class="text-lg font-black text-amber-700">0.00 兩</div>
           </div>
           <div class="dash-card">
-            <div class="text-xs font-bold text-gray-500">本月收購總金額</div>
-            <div id="dashMonthPayout" class="text-lg font-black text-gray-800">$0</div>
-          </div>
-          <div class="dash-card">
-            <div class="text-xs font-bold text-gray-500">本月足金總重 (兩)</div>
-            <div id="dashMonthGoldWeight" class="text-lg font-black text-amber-700">0.00 兩</div>
-          </div>
-          <div class="dash-card">
-            <div class="text-xs font-bold text-gray-500">本月鉑金總件數</div>
-            <div id="dashMonthPlatCount" class="text-lg font-black text-blue-600">0 件</div>
+            <div id="dashPlatTitle" class="text-xs font-bold text-gray-500">今日鉑金總件數</div>
+            <div id="dashPlatCount" class="text-lg font-black text-blue-600">0 件</div>
           </div>
         </div>
         
         <div class="bg-gray-50 p-4 border rounded-xl">
-          <div class="text-xs font-black text-gray-500 mb-2">📍 本月分店進貨支出排行榜 (HKD)</div>
+          <div id="rankTitle" class="text-xs font-black text-gray-500 mb-2">📍 今日分店進貨支出排行榜 (HKD)</div>
           <div class="space-y-1 text-sm font-bold text-gray-700">
             <div class="flex justify-between"><span>KF 店:</span><span id="rankKF">$0</span></div>
             <div class="flex justify-between"><span>KS 店:</span><span id="rankKS">$0</span></div>
@@ -302,7 +304,6 @@
   const API_KEY = 'b59eca630c98a8dbc001ff5d576db229'; 
   const BOSS_KEY = '888';
 
-  // 🔑 三家分店專屬對賬密碼設定 (更新)
   const STORE_PASSWORDS = {
     'KF': '1338',
     'KS': '3988',
@@ -313,6 +314,7 @@
   let cachedRecords = [];
   let currentEODRecords = [];
   let currentEODShop = '';
+  let currentTimeScope = 'today'; // 預設看板時間範圍為今日 'today' 或 'month'
 
   function formatToTraditionalTael(milliWeight) {
     const w = Math.round(Number(milliWeight));
@@ -379,6 +381,25 @@
       listBtn.className = "tab-btn tab-active";
       dashView.classList.add('hidden');
       listView.classList.remove('hidden');
+    }
+  }
+
+  // 📅 切換今日 / 本月看板範圍
+  function switchTimeScope(scope) {
+    currentTimeScope = scope;
+    const btnToday = document.getElementById('subTabToday');
+    const btnMonth = document.getElementById('subTabMonth');
+
+    if (scope === 'today') {
+      btnToday.className = "w-1/2 py-1.5 rounded-lg bg-amber-800 text-white font-extrabold shadow-sm transition";
+      btnMonth.className = "w-1/2 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+    } else {
+      btnMonth.className = "w-1/2 py-1.5 rounded-lg bg-amber-800 text-white font-extrabold shadow-sm transition";
+      btnToday.className = "w-1/2 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+    }
+
+    if (cachedRecords.length > 0) {
+      calculateDashboard(cachedRecords);
     }
   }
 
@@ -696,52 +717,64 @@
     }
   }
 
+  // 📊 前端即時 Dashboard 動態計算邏輯 (支援 今日 / 本月 切換)
   function calculateDashboard(records) {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
     const todayStr = now.toDateString();
     
-    let todayPayout = 0;
-    let monthPayout = 0;
-    let monthProfit = 0;
-    let monthGoldWeight = 0;
-    let monthPlatCount = 0;
+    let payoutSum = 0;
+    let profitSum = 0;
+    let goldWeightSum = 0;
+    let platCountSum = 0;
     
-    let shopMonthlySpend = { KF: 0, KS: 0, KL: 0 };
+    let shopSpend = { KF: 0, KS: 0, KL: 0 };
 
     records.forEach(r => {
       if (!r.time) return;
       const rDate = new Date(r.time);
       
-      if (rDate.toDateString() === todayStr) {
-        todayPayout += Number(r.payout || 0);
+      // 根據目前選擇的時間範圍進行過濾
+      let isMatch = false;
+      if (currentTimeScope === 'today') {
+        isMatch = (rDate.toDateString() === todayStr);
+      } else { // month
+        isMatch = (rDate.getFullYear() === currentYear && rDate.getMonth() === currentMonth);
       }
-      
-      if (rDate.getFullYear() === currentYear && rDate.getMonth() === currentMonth) {
-        monthPayout += Number(r.payout || 0);
-        monthProfit += Number(r.profit || 0);
-        monthGoldWeight += Number(r.fineGoldWeight || 0);
+
+      if (isMatch) {
+        payoutSum += Number(r.payout || 0);
+        profitSum += Number(r.profit || 0);
+        goldWeightSum += Number(r.fineGoldWeight || 0);
         
         if (r.isPlatinum === 'YES' || r.isPlatinum === true) {
-          monthPlatCount++;
+          platCountSum++;
         }
         
-        if (shopMonthlySpend.hasOwnProperty(r.shop)) {
-          shopMonthlySpend[r.shop] += Number(r.payout || 0);
+        if (shopSpend.hasOwnProperty(r.shop)) {
+          shopSpend[r.shop] += Number(r.payout || 0);
         }
       }
     });
 
-    document.getElementById('dashTodayPayout').innerText = "$" + todayPayout.toLocaleString();
-    document.getElementById('dashMonthPayout').innerText = "$" + monthPayout.toLocaleString();
-    document.getElementById('dashMonthProfit').innerText = "$" + monthProfit.toLocaleString();
-    document.getElementById('dashMonthGoldWeight').innerText = monthGoldWeight.toFixed(2) + " 兩";
-    document.getElementById('dashMonthPlatCount').innerText = monthPlatCount + " 件";
+    // 動態更新卡片標題文字
+    const isToday = (currentTimeScope === 'today');
+    document.getElementById('dashProfitTitle').innerText = isToday ? "今日累計預估總利潤" : "本月累計預估總利潤";
+    document.getElementById('dashPayoutTitle').innerText = isToday ? "今日收購總金額" : "本月收購總金額";
+    document.getElementById('dashWeightTitle').innerText = isToday ? "今日足金總重 (兩)" : "本月足金總重 (兩)";
+    document.getElementById('dashPlatTitle').innerText = isToday ? "今日鉑金總件數" : "本月鉑金總件數";
+    document.getElementById('rankTitle').innerText = isToday ? "📍 今日分店進貨支出排行榜 (HKD)" : "📍 本月分店進貨支出排行榜 (HKD)";
+
+    // 填入計算數字
+    document.getElementById('dashProfit').innerText = "$" + profitSum.toLocaleString();
+    document.getElementById('dashPayout').innerText = "$" + payoutSum.toLocaleString();
+    document.getElementById('dashGoldWeight').innerText = goldWeightSum.toFixed(2) + " 兩";
+    document.getElementById('dashPlatCount').innerText = platCountSum + " 件";
     
-    document.getElementById('rankKF').innerText = "$" + shopMonthlySpend.KF.toLocaleString();
-    document.getElementById('rankKS').innerText = "$" + shopMonthlySpend.KS.toLocaleString();
-    document.getElementById('rankKL').innerText = "$" + shopMonthlySpend.KL.toLocaleString();
+    document.getElementById('rankKF').innerText = "$" + shopSpend.KF.toLocaleString();
+    document.getElementById('rankKS').innerText = "$" + shopSpend.KS.toLocaleString();
+    document.getElementById('rankKL').innerText = "$" + shopSpend.KL.toLocaleString();
   }
 
   function renderListView(records) {
