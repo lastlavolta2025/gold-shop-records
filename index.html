@@ -149,10 +149,11 @@
       </div>
 
       <div id="dashboardView" class="space-y-4">
-        <!-- 📅 日/月 看板切換標籤 -->
+        <!-- 📅 今日 / 近7日 / 本月 三區間切換標籤 -->
         <div class="flex justify-center bg-gray-200 p-1 rounded-xl text-xs font-bold gap-1">
-          <button id="subTabToday" onclick="switchTimeScope('today')" class="w-1/2 py-1.5 rounded-lg bg-amber-800 text-white font-extrabold shadow-sm transition">📅 今日營運</button>
-          <button id="subTabMonth" onclick="switchTimeScope('month')" class="w-1/2 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">🗓️ 本月累計</button>
+          <button id="subTabToday" onclick="switchTimeScope('today')" class="w-1/3 py-1.5 rounded-lg bg-amber-800 text-white font-extrabold shadow-sm transition">📅 今日營運</button>
+          <button id="subTab7Days" onclick="switchTimeScope('7days')" class="w-1/3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">🗓️ 近 7 日</button>
+          <button id="subTabMonth" onclick="switchTimeScope('month')" class="w-1/3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">🗓️ 本月累計</button>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -314,7 +315,7 @@
   let cachedRecords = [];
   let currentEODRecords = [];
   let currentEODShop = '';
-  let currentTimeScope = 'today'; // 預設看板時間範圍為今日 'today' 或 'month'
+  let currentTimeScope = 'today'; // 可選: 'today' | '7days' | 'month'
 
   function formatToTraditionalTael(milliWeight) {
     const w = Math.round(Number(milliWeight));
@@ -384,19 +385,19 @@
     }
   }
 
-  // 📅 切換今日 / 本月看板範圍
+  // 📅 切換今日 / 近7日 / 本月 看板範圍
   function switchTimeScope(scope) {
     currentTimeScope = scope;
     const btnToday = document.getElementById('subTabToday');
+    const btn7Days = document.getElementById('subTab7Days');
     const btnMonth = document.getElementById('subTabMonth');
 
-    if (scope === 'today') {
-      btnToday.className = "w-1/2 py-1.5 rounded-lg bg-amber-800 text-white font-extrabold shadow-sm transition";
-      btnMonth.className = "w-1/2 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-    } else {
-      btnMonth.className = "w-1/2 py-1.5 rounded-lg bg-amber-800 text-white font-extrabold shadow-sm transition";
-      btnToday.className = "w-1/2 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-    }
+    const activeClass = "w-1/3 py-1.5 rounded-lg bg-amber-800 text-white font-extrabold shadow-sm transition";
+    const inactiveClass = "w-1/3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+
+    btnToday.className = (scope === 'today') ? activeClass : inactiveClass;
+    btn7Days.className = (scope === '7days') ? activeClass : inactiveClass;
+    btnMonth.className = (scope === 'month') ? activeClass : inactiveClass;
 
     if (cachedRecords.length > 0) {
       calculateDashboard(cachedRecords);
@@ -717,9 +718,15 @@
     }
   }
 
-  // 📊 前端即時 Dashboard 動態計算邏輯 (支援 今日 / 本月 切換)
+  // 📊 前端即時 Dashboard 動態計算邏輯 (支援 今日 / 近7日 / 本月 切換)
   function calculateDashboard(records) {
     const now = new Date();
+    
+    // 計算近 7 天的時間邊界（今日 00:00:00 往前退 6 天，共 7 天）
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sevenDaysAgoStart = new Date(todayStart);
+    sevenDaysAgoStart.setDate(todayStart.getDate() - 6);
+
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
     const todayStr = now.toDateString();
@@ -735,10 +742,11 @@
       if (!r.time) return;
       const rDate = new Date(r.time);
       
-      // 根據目前選擇的時間範圍進行過濾
       let isMatch = false;
       if (currentTimeScope === 'today') {
         isMatch = (rDate.toDateString() === todayStr);
+      } else if (currentTimeScope === '7days') {
+        isMatch = (rDate >= sevenDaysAgoStart && rDate <= now);
       } else { // month
         isMatch = (rDate.getFullYear() === currentYear && rDate.getMonth() === currentMonth);
       }
@@ -758,13 +766,16 @@
       }
     });
 
-    // 動態更新卡片標題文字
-    const isToday = (currentTimeScope === 'today');
-    document.getElementById('dashProfitTitle').innerText = isToday ? "今日累計預估總利潤" : "本月累計預估總利潤";
-    document.getElementById('dashPayoutTitle').innerText = isToday ? "今日收購總金額" : "本月收購總金額";
-    document.getElementById('dashWeightTitle').innerText = isToday ? "今日足金總重 (兩)" : "本月足金總重 (兩)";
-    document.getElementById('dashPlatTitle').innerText = isToday ? "今日鉑金總件數" : "本月鉑金總件數";
-    document.getElementById('rankTitle').innerText = isToday ? "📍 今日分店進貨支出排行榜 (HKD)" : "📍 本月分店進貨支出排行榜 (HKD)";
+    // 動態更新標題
+    let titlePrefix = "今日";
+    if (currentTimeScope === '7days') titlePrefix = "近 7 日";
+    if (currentTimeScope === 'month') titlePrefix = "本月";
+
+    document.getElementById('dashProfitTitle').innerText = `${titlePrefix}累計預估總利潤`;
+    document.getElementById('dashPayoutTitle').innerText = `${titlePrefix}收購總金額`;
+    document.getElementById('dashWeightTitle').innerText = `${titlePrefix}足金總重 (兩)`;
+    document.getElementById('dashPlatTitle').innerText = `${titlePrefix}鉑金總件數`;
+    document.getElementById('rankTitle').innerText = `📍 ${titlePrefix}分店進貨支出排行榜 (HKD)`;
 
     // 填入計算數字
     document.getElementById('dashProfit').innerText = "$" + profitSum.toLocaleString();
